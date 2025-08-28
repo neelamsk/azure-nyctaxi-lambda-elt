@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.auto.tfvars
+crash.log
+
+# Bicep/ARM build artifacts
+*.bicep.params
+*.parameters.json
+
+# Python/node temp (if used later)
+.venv/
+__pycache__/
+node_modules/ß
+
+# Local data
+data/
+!data/.gitkeep
+
+# VS Code
+.vscode/

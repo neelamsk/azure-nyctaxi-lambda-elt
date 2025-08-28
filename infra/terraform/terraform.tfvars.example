@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars and edit values (do NOT commit real secrets)
+prefix   = "neel1"
+location = "eastus"
+
+synapse_sql_admin_login    = "sqladminuser"
+synapse_sql_admin_password = "ChangeMe_StrongP@ssw0rd!"
