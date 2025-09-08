@@ -1,0 +1,9 @@
+{
+	"name": "eltazr1-adf",
+	"location": "eastus2",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "4cf60158-1609-470a-b55a-e28fe5b2eb19",
+		"tenantId": "d919d628-813d-446d-872c-16a6a359f189"
+	}
+}
