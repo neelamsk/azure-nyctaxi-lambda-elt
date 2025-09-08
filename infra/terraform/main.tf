@@ -26,7 +26,13 @@ resource "azurerm_storage_account" "adls" {
   account_replication_type        = "LRS"
   account_kind                    = "StorageV2"
   is_hns_enabled                  = true
-  allow_nested_items_to_be_public = false
+  allow_nested_items_to_be_public = false,
+  blob_properties {
+      versioning_enabled = true
+      delete_retention_policy { days = 7 }
+      container_delete_retention_policy { days = 7 }
+
+  }
 }
 
 # Raw container for landings
