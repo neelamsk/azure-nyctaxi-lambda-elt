@@ -118,7 +118,7 @@
 						},
 						{
 							"name": "CopyIntoRaw",
-							"description": "COPY INTO stg.trip_raw\nFROM 'nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}/@{item().name}'\nWITH (\n  DATA_SOURCE = 'EDS_Raw',\n  FILE_TYPE   = 'PARQUET',\n  MAXERRORS   = 0\n);\n",
+							"description": "",
 							"type": "Script",
 							"dependsOn": [
 								{
@@ -136,8 +136,17 @@
 								"secureInput": false
 							},
 							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "AzureSynapseAnalytics1",
+								"type": "LinkedServiceReference"
+							},
 							"typeProperties": {
-								"scripts": [],
+								"scripts": [
+									{
+										"type": "Query",
+										"text": "COPY INTO stg.trip_raw\nFROM 'nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}/@{item().name}'\nWITH (\n  DATA_SOURCE = 'EDS_Raw',\n  FILE_TYPE   = 'PARQUET',\n  MAXERRORS   = 0\n);\n"
+									}
+								],
 								"scriptBlockExecutionTimeout": "02:00:00"
 							}
 						},
