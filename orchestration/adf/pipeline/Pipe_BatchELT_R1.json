@@ -45,19 +45,21 @@
 				"userProperties": [],
 				"typeProperties": {
 					"dataset": {
-						"referenceName": "DS_Parquet_NycTaxi",
+						"referenceName": "DS_ADLS_Folder",
 						"type": "DatasetReference",
 						"parameters": {
 							"folder": "nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}"
 						}
 					},
-					"fieldList": [],
+					"fieldList": [
+						"childItems"
+					],
 					"storeSettings": {
 						"type": "AzureBlobFSReadSettings",
 						"enablePartitionDiscovery": false
 					},
 					"formatSettings": {
-						"type": "ParquetReadSettings"
+						"type": "BinaryReadSettings"
 					}
 				}
 			}
