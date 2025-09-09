@@ -1,0 +1,11 @@
+{
+	"name": "Pipe_BatchELT_R1",
+	"properties": {
+		"parameters": {
+			"ingest_date": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}
