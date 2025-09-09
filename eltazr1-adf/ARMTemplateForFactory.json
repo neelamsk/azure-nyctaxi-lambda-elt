@@ -120,6 +120,7 @@
 								"value": "@activity('ListFiles').output.childItems",
 								"type": "Expression"
 							},
+							"batchCount": 1,
 							"activities": [
 								{
 									"name": "CopyToStaging",
@@ -136,29 +137,6 @@
 									"typeProperties": {
 										"source": {
 											"type": "ParquetSource",
-											"additionalColumns": [
-												{
-													"name": "ingest_date",
-													"value": {
-														"value": "@{pipeline().parameters.ingest_date}",
-														"type": "Expression"
-													}
-												},
-												{
-													"name": "source_file_name",
-													"value": {
-														"value": "@{item().name}",
-														"type": "Expression"
-													}
-												},
-												{
-													"name": "loaded_at",
-													"value": {
-														"value": "@{utcNow()}",
-														"type": "Expression"
-													}
-												}
-											],
 											"storeSettings": {
 												"type": "AzureBlobFSReadSettings",
 												"recursive": true,
@@ -170,218 +148,11 @@
 										},
 										"sink": {
 											"type": "SqlDWSink",
-											"writeBehavior": "Insert",
+											"allowCopyCommand": true,
+											"copyCommandSettings": {},
 											"disableMetricsCollection": false
 										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"mappings": [
-												{
-													"source": {
-														"name": "VendorID"
-													},
-													"sink": {
-														"name": "vendor_id",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tpep_pickup_datetime"
-													},
-													"sink": {
-														"name": "tpep_pickup_datetime",
-														"type": "DateTime"
-													}
-												},
-												{
-													"source": {
-														"name": "tpep_dropoff_datetime"
-													},
-													"sink": {
-														"name": "tpep_dropoff_datetime",
-														"type": "DateTime"
-													}
-												},
-												{
-													"source": {
-														"name": "passenger_count"
-													},
-													"sink": {
-														"name": "passenger_count",
-														"type": "Int32"
-													}
-												},
-												{
-													"source": {
-														"name": "trip_distance"
-													},
-													"sink": {
-														"name": "trip_distance",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "RatecodeID"
-													},
-													"sink": {
-														"name": "ratecodeid",
-														"type": "Int32"
-													}
-												},
-												{
-													"source": {
-														"name": "store_and_fwd_flag"
-													},
-													"sink": {
-														"name": "store_and_fwd_flag",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "PULocationID"
-													},
-													"sink": {
-														"name": "pu_location_id",
-														"type": "Int32"
-													}
-												},
-												{
-													"source": {
-														"name": "DOLocationID"
-													},
-													"sink": {
-														"name": "do_location_id",
-														"type": "Int32"
-													}
-												},
-												{
-													"source": {
-														"name": "payment_type"
-													},
-													"sink": {
-														"name": "payment_type",
-														"type": "Int32"
-													}
-												},
-												{
-													"source": {
-														"name": "fare_amount"
-													},
-													"sink": {
-														"name": "fare_amount",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "extra"
-													},
-													"sink": {
-														"name": "extra",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "mta_tax"
-													},
-													"sink": {
-														"name": "mta_tax",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "tip_amount"
-													},
-													"sink": {
-														"name": "tip_amount",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "tolls_amount"
-													},
-													"sink": {
-														"name": "tolls_amount",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "improvement_surcharge"
-													},
-													"sink": {
-														"name": "improvement_surcharge",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "total_amount"
-													},
-													"sink": {
-														"name": "total_amount",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "congestion_surcharge"
-													},
-													"sink": {
-														"name": "congestion_surcharge",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "Airport_fee"
-													},
-													"sink": {
-														"name": "airport_fee",
-														"type": "Decimal"
-													}
-												},
-												{
-													"source": {
-														"name": "ingest_date"
-													},
-													"sink": {
-														"name": "ingest_date",
-														"type": "DateTime"
-													}
-												},
-												{
-													"source": {
-														"name": "source_file_name"
-													},
-													"sink": {
-														"name": "source_file_name",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "loaded_at"
-													},
-													"sink": {
-														"name": "loaded_at",
-														"type": "DateTime"
-													}
-												}
-											],
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
+										"enableStaging": false
 									},
 									"inputs": [
 										{
@@ -395,11 +166,80 @@
 									],
 									"outputs": [
 										{
-											"referenceName": "DS_Sql_StgTrip",
+											"referenceName": "DS_Sql_StgTripRaw",
 											"type": "DatasetReference",
 											"parameters": {}
 										}
 									]
+								},
+								{
+									"name": "InsertIntoFinal",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "CopyToStaging",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "AzureSynapseAnalytics1",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "INSERT INTO stg.trip\n(\n  vendor_id, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  ratecodeid, store_and_fwd_flag, pu_location_id, do_location_id, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, airport_fee,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  VendorID, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  RatecodeID, store_and_fwd_flag, PULocationID, DOLocationID, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, Airport_fee,\n  '@{pipeline().parameters.ingest_date}', '@{item().name}', SYSUTCDATETIME()\nFROM stg.trip_raw;\n",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "TruncateRaw",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "InsertIntoFinal",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "AzureSynapseAnalytics1",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": "TRUNCATE TABLE stg.trip_raw;"
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
 								}
 							]
 						}
@@ -419,7 +259,7 @@
 				"[concat(variables('factoryId'), '/linkedServices/AzureSynapseAnalytics1')]",
 				"[concat(variables('factoryId'), '/datasets/DS_ADLS_Folder')]",
 				"[concat(variables('factoryId'), '/datasets/DS_Parquet_NycTaxi')]",
-				"[concat(variables('factoryId'), '/datasets/DS_Sql_StgTrip')]"
+				"[concat(variables('factoryId'), '/datasets/DS_Sql_StgTripRaw')]"
 			]
 		},
 		{
@@ -625,6 +465,132 @@
 				"typeProperties": {
 					"schema": "stg",
 					"table": "trip"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSynapseAnalytics1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_Sql_StgTripRaw')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSynapseAnalytics1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlDWTable",
+				"schema": [
+					{
+						"name": "VendorID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "tpep_pickup_datetime",
+						"type": "datetime2",
+						"scale": 3
+					},
+					{
+						"name": "tpep_dropoff_datetime",
+						"type": "datetime2",
+						"scale": 3
+					},
+					{
+						"name": "passenger_count",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "trip_distance",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 3
+					},
+					{
+						"name": "RatecodeID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "store_and_fwd_flag",
+						"type": "char"
+					},
+					{
+						"name": "PULocationID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "DOLocationID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "payment_type",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "fare_amount",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "extra",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "mta_tax",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "tip_amount",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "tolls_amount",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "improvement_surcharge",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "total_amount",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "congestion_surcharge",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "Airport_fee",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "stg",
+					"table": "trip_raw"
 				}
 			},
 			"dependsOn": [
