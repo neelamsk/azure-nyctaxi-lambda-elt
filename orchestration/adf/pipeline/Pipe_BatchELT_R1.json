@@ -63,6 +63,7 @@
 					],
 					"storeSettings": {
 						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
 						"enablePartitionDiscovery": false
 					},
 					"formatSettings": {
@@ -137,7 +138,7 @@
 								},
 								"sink": {
 									"type": "SqlDWSink",
-									"allowCopyCommand": true,
+									"writeBehavior": "Insert",
 									"disableMetricsCollection": false
 								},
 								"enableStaging": false,
@@ -342,7 +343,12 @@
 												"type": "DateTime"
 											}
 										}
-									]
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
 								}
 							},
 							"inputs": [
