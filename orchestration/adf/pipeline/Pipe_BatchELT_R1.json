@@ -145,7 +145,7 @@
 									{
 										"type": "Query",
 										"text": {
-											"value": "COPY INTO stg.trip_raw\nFROM 'abfss://raw@<yourStorageAccount>.dfs.core.windows.net/nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}/@{item().name}'\nWITH (\n  FILE_TYPE   = 'PARQUET',\n  CREDENTIAL  = (IDENTITY = 'Managed Identity'),\n  MAXERRORS   = 0\n);\n",
+											"value": "COPY INTO stg.trip_raw\nFROM 'https://eltazr1adls.dfs.core.windows.net/raw/nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}/@{item().name}'\nWITH (\n  FILE_TYPE  = 'PARQUET',\n  CREDENTIAL = (IDENTITY = 'Managed Identity'),\n  MAXERRORS  = 0\n);\n",
 											"type": "Expression"
 										}
 									}
