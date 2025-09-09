@@ -5,13 +5,21 @@
 			"referenceName": "AzureDataLakeStorage1",
 			"type": "LinkedServiceReference"
 		},
+		"parameters": {
+			"folder": {
+				"type": "string"
+			},
+			"fileName": {
+				"type": "string"
+			}
+		},
 		"annotations": [],
 		"type": "Parquet",
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"fileName": "yellow_tripdata_2025-07.parquet",
-				"folderPath": "nyc_taxi/ingest_date=2025-07-01",
+				"fileName": "@{dataset().fileName}",
+				"folderPath": "@{dataset().folder}",
 				"fileSystem": "raw"
 			},
 			"compressionCodec": "snappy"
