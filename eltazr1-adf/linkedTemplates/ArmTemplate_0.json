@@ -545,7 +545,10 @@
 										"scripts": [
 											{
 												"type": "Query",
-												"text": "COPY INTO stg.trip_raw\nFROM 'nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}/@{item().name}'\nWITH (\n  DATA_SOURCE = 'EDS_Raw',\n  FILE_TYPE   = 'PARQUET',\n  MAXERRORS   = 0\n);\n"
+												"text": {
+													"value": "COPY INTO stg.trip_raw\nFROM 'abfss://raw@<yourStorageAccount>.dfs.core.windows.net/nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}/@{item().name}'\nWITH (\n  FILE_TYPE   = 'PARQUET',\n  CREDENTIAL  = (IDENTITY = 'Managed Identity'),\n  MAXERRORS   = 0\n);\n",
+													"type": "Expression"
+												}
 											}
 										],
 										"scriptBlockExecutionTimeout": "02:00:00"
