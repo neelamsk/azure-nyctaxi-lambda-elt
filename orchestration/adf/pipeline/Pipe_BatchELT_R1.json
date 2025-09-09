@@ -1,6 +1,37 @@
 {
 	"name": "Pipe_BatchELT_R1",
 	"properties": {
+		"activities": [
+			{
+				"name": "DeleteSlice",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSynapseAnalytics1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "DELETE FROM stg.trip\nWHERE ingest_date = '@{pipeline().parameters.ingest_date}'",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
 		"parameters": {
 			"ingest_date": {
 				"type": "string"
