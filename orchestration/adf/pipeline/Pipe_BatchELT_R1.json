@@ -103,6 +103,29 @@
 							"typeProperties": {
 								"source": {
 									"type": "ParquetSource",
+									"additionalColumns": [
+										{
+											"name": "ingest_date",
+											"value": {
+												"value": "@{pipeline().parameters.ingest_date}",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "source_file_name",
+											"value": {
+												"value": "@{item().name}",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "loaded_at",
+											"value": {
+												"value": "@{utcNow()}",
+												"type": "Expression"
+											}
+										}
+									],
 									"storeSettings": {
 										"type": "AzureBlobFSReadSettings",
 										"recursive": true,
@@ -114,7 +137,8 @@
 								},
 								"sink": {
 									"type": "SqlDWSink",
-									"allowCopyCommand": true
+									"allowCopyCommand": true,
+									"disableMetricsCollection": false
 								},
 								"enableStaging": false
 							},
