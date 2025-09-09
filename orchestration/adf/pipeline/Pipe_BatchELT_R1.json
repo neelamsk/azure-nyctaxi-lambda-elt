@@ -137,6 +137,72 @@
 									"type": "DatasetReference"
 								}
 							]
+						},
+						{
+							"name": "InsertIntoFinal",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "CopyToStaging",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "AzureSynapseAnalytics1",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": "INSERT INTO stg.trip\n(\n  vendor_id, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  ratecodeid, store_and_fwd_flag, pu_location_id, do_location_id, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, airport_fee,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  VendorID, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  RatecodeID, store_and_fwd_flag, PULocationID, DOLocationID, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, Airport_fee,\n  '@{pipeline().parameters.ingest_date}', '@{item().name}', SYSUTCDATETIME()\nFROM stg.trip_raw;\n"
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						},
+						{
+							"name": "TruncateRaw",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "InsertIntoFinal",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "AzureSynapseAnalytics1",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": "TRUNCATE TABLE stg.trip_raw;"
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
 						}
 					]
 				}
