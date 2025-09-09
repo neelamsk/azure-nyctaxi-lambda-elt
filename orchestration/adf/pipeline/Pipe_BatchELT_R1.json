@@ -140,7 +140,210 @@
 									"allowCopyCommand": true,
 									"disableMetricsCollection": false
 								},
-								"enableStaging": false
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "VendorID"
+											},
+											"sink": {
+												"name": "vendor_id",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "tpep_pickup_datetime"
+											},
+											"sink": {
+												"name": "tpep_pickup_datetime",
+												"type": "DateTime"
+											}
+										},
+										{
+											"source": {
+												"name": "tpep_dropoff_datetime"
+											},
+											"sink": {
+												"name": "tpep_dropoff_datetime",
+												"type": "DateTime"
+											}
+										},
+										{
+											"source": {
+												"name": "passenger_count"
+											},
+											"sink": {
+												"name": "passenger_count",
+												"type": "Int32"
+											}
+										},
+										{
+											"source": {
+												"name": "trip_distance"
+											},
+											"sink": {
+												"name": "trip_distance",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "RatecodeID"
+											},
+											"sink": {
+												"name": "ratecodeid",
+												"type": "Int32"
+											}
+										},
+										{
+											"source": {
+												"name": "store_and_fwd_flag"
+											},
+											"sink": {
+												"name": "store_and_fwd_flag",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "PULocationID"
+											},
+											"sink": {
+												"name": "pu_location_id",
+												"type": "Int32"
+											}
+										},
+										{
+											"source": {
+												"name": "DOLocationID"
+											},
+											"sink": {
+												"name": "do_location_id",
+												"type": "Int32"
+											}
+										},
+										{
+											"source": {
+												"name": "payment_type"
+											},
+											"sink": {
+												"name": "payment_type",
+												"type": "Int32"
+											}
+										},
+										{
+											"source": {
+												"name": "fare_amount"
+											},
+											"sink": {
+												"name": "fare_amount",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "extra"
+											},
+											"sink": {
+												"name": "extra",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "mta_tax"
+											},
+											"sink": {
+												"name": "mta_tax",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "tip_amount"
+											},
+											"sink": {
+												"name": "tip_amount",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "tolls_amount"
+											},
+											"sink": {
+												"name": "tolls_amount",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "improvement_surcharge"
+											},
+											"sink": {
+												"name": "improvement_surcharge",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "total_amount"
+											},
+											"sink": {
+												"name": "total_amount",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "congestion_surcharge"
+											},
+											"sink": {
+												"name": "congestion_surcharge",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "Airport_fee"
+											},
+											"sink": {
+												"name": "airport_fee",
+												"type": "Decimal"
+											}
+										},
+										{
+											"source": {
+												"name": "ingest_date"
+											},
+											"sink": {
+												"name": "ingest_date",
+												"type": "DateTime"
+											}
+										},
+										{
+											"source": {
+												"name": "source_file_name"
+											},
+											"sink": {
+												"name": "source_file_name",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "loaded_at"
+											},
+											"sink": {
+												"name": "loaded_at",
+												"type": "DateTime"
+											}
+										}
+									]
+								}
 							},
 							"inputs": [
 								{
