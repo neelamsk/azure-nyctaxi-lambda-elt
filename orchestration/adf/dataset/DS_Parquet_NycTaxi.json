@@ -1,0 +1,21 @@
+{
+	"name": "DS_Parquet_NycTaxi",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureDataLakeStorage1",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "yellow_tripdata_2025-07.parquet",
+				"folderPath": "nyc_taxi/ingest_date=2025-07-01",
+				"fileSystem": "raw"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
