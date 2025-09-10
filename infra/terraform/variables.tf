@@ -50,7 +50,7 @@ variable "client_ip" {
   default = null
 }
 
-variable "spark_version" { 
-  type = string  
-  default = "3.3" 
+variable "spark_version" {
+  type    = string
+  default = "3.3"
 }
