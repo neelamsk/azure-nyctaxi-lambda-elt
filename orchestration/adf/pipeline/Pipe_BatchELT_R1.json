@@ -91,99 +91,159 @@
 					"batchCount": 1,
 					"activities": [
 						{
-							"name": "TruncateRaw",
-							"type": "Script",
+							"name": "If Condition1",
+							"type": "IfCondition",
 							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
 							"userProperties": [],
-							"linkedServiceName": {
-								"referenceName": "AzureSynapseAnalytics1",
-								"type": "LinkedServiceReference"
-							},
 							"typeProperties": {
-								"scripts": [
+								"expression": {
+									"value": "@and(\n  equals(item().type, 'File'),\n  equals(toLower(last(split(item().name, '.'))), 'parquet')\n)\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
 									{
-										"type": "Query",
-										"text": "TRUNCATE TABLE stg.trip_raw;"
-									}
-								],
-								"scriptBlockExecutionTimeout": "02:00:00"
-							}
-						},
-						{
-							"name": "CopyIntoRaw",
-							"description": "",
-							"type": "Script",
-							"dependsOn": [
-								{
-									"activity": "TruncateRaw",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"linkedServiceName": {
-								"referenceName": "AzureSynapseAnalytics1",
-								"type": "LinkedServiceReference"
-							},
-							"typeProperties": {
-								"scripts": [
+										"name": "TranscodeToSnappy",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": {
+													"value": "Notebook 1",
+													"type": "Expression"
+												},
+												"type": "NotebookReference"
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": {
+													"value": "spsmall01",
+													"type": "Expression"
+												},
+												"type": "BigDataPoolReference"
+											},
+											"executorSize": "Small",
+											"driverSize": "Small"
+										},
+										"linkedServiceName": {
+											"referenceName": "AzureSynapseArtifacts1",
+											"type": "LinkedServiceReference"
+										}
+									},
 									{
-										"type": "Query",
-										"text": {
-											"value": "COPY INTO stg.trip_raw\nFROM 'https://eltazr1adls.dfs.core.windows.net/raw/nyc_taxi/ingest_date=@{pipeline().parameters.ingest_date}/@{item().name}'\nWITH (\n  FILE_TYPE  = 'PARQUET',\n  CREDENTIAL = (IDENTITY = 'Managed Identity'),\n  MAXERRORS  = 0\n);\n",
-											"type": "Expression"
+										"name": "TruncateRaw",
+										"type": "Script",
+										"dependsOn": [
+											{
+												"activity": "TranscodeToSnappy",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"linkedServiceName": {
+											"referenceName": "AzureSynapseAnalytics1",
+											"type": "LinkedServiceReference"
+										},
+										"typeProperties": {
+											"scripts": [
+												{
+													"type": "Query",
+													"text": "TRUNCATE TABLE stg.trip_raw;\n"
+												}
+											],
+											"scriptBlockExecutionTimeout": "02:00:00"
+										}
+									},
+									{
+										"name": "CopyIntoRaw",
+										"description": "",
+										"type": "Script",
+										"dependsOn": [
+											{
+												"activity": "TruncateRaw",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"linkedServiceName": {
+											"referenceName": "AzureSynapseAnalytics1",
+											"type": "LinkedServiceReference"
+										},
+										"typeProperties": {
+											"scripts": [
+												{
+													"type": "Query",
+													"text": {
+														"value": "COPY INTO stg.trip_raw\nFROM 'https://eltazr1adls.dfs.core.windows.net/raw/nyc_taxi_snappy/ingest_date=@{pipeline().parameters.ingest_date}/file_name=@{item().name}/'\nWITH (\n  FILE_TYPE  = 'PARQUET',\n  CREDENTIAL = (IDENTITY = 'Managed Identity'),\n  MAXERRORS  = 0\n);\n",
+														"type": "Expression"
+													}
+												}
+											],
+											"scriptBlockExecutionTimeout": "02:00:00"
+										}
+									},
+									{
+										"name": "InsertIntoFinal",
+										"type": "Script",
+										"dependsOn": [
+											{
+												"activity": "CopyIntoRaw",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"linkedServiceName": {
+											"referenceName": "AzureSynapseAnalytics1",
+											"type": "LinkedServiceReference"
+										},
+										"typeProperties": {
+											"scripts": [
+												{
+													"type": "Query",
+													"text": {
+														"value": "INSERT INTO stg.trip\n(\n  vendor_id, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  ratecodeid, store_and_fwd_flag, pu_location_id, do_location_id, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, airport_fee,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  VendorID, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  RatecodeID, store_and_fwd_flag, PULocationID, DOLocationID, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, Airport_fee,\n  '@{pipeline().parameters.ingest_date}', '@{item().name}', SYSUTCDATETIME()\nFROM stg.trip_raw;\n",
+														"type": "Expression"
+													}
+												}
+											],
+											"scriptBlockExecutionTimeout": "02:00:00"
 										}
 									}
-								],
-								"scriptBlockExecutionTimeout": "02:00:00"
-							}
-						},
-						{
-							"name": "InsertIntoFinal",
-							"type": "Script",
-							"dependsOn": [
-								{
-									"activity": "CopyIntoRaw",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"linkedServiceName": {
-								"referenceName": "AzureSynapseAnalytics1",
-								"type": "LinkedServiceReference"
-							},
-							"typeProperties": {
-								"scripts": [
-									{
-										"type": "Query",
-										"text": "INSERT INTO stg.trip\n(\n  vendor_id, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  ratecodeid, store_and_fwd_flag, pu_location_id, do_location_id, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, airport_fee,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  VendorID, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance,\n  RatecodeID, store_and_fwd_flag, PULocationID, DOLocationID, payment_type, fare_amount,\n  extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount,\n  congestion_surcharge, Airport_fee,\n  '@{pipeline().parameters.ingest_date}', '@{item().name}', SYSUTCDATETIME()\nFROM stg.trip_raw;\n"
-									}
-								],
-								"scriptBlockExecutionTimeout": "02:00:00"
+								]
 							}
 						}
 					]
