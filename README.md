@@ -1,5 +1,19 @@
 # Demo Project - Batch ELT on Azure
 
+## Executive Summary
+
+I have built a production-style Batch ELT on Azure using Terraform + ADF + Synapse.
+
+* Automated daily ingestion of NYC Taxi CSVs into ADLS Gen2 with date partitions.
+
+* Loaded raw → staging → clean (core) → star schema (facts/dims) in Synapse Dedicated SQL Pool.
+
+* Wrote data quality checks, added run logs/lineage, and captured pipeline screenshots.
+
+* Produced KPI queries and BI screenshots.
+Skills: Azure IaC (Terraform), ADF pipelines, Synapse SQL (MPP, columnstore, distribution), data modeling, DQ/monitoring, cost hygiene (pause/resume).
+Why it matters: demonstrates end-to-end data engineering, reproducibility, and cloud ops discipline.
+
 A showcase, end-to-end **Batch ELT** pipeline on Azure:
 **ADLS Gen2 (raw)** → **Azure Data Factory (ingest)** → **Synapse SQL (staging → core → model)** → **BI (screenshots + SQL notebook)**
 
@@ -18,7 +32,7 @@ A showcase, end-to-end **Batch ELT** pipeline on Azure:
 - **Orchestration:** Azure Data Factory (ADF)
 - **Warehouse:** Synapse Dedicated SQL Pool (DW100c)
 - **Data Lake:** ADLS Gen2 (Hierarchical Namespace on)
-- **IaC (Run 1):** Terraform
+- **IaC:** Terraform
 - **Partitioning:** `ingest_date=YYYY-MM-DD` folders (repeatable loads + pruning)
 
 ## Repo layout (key folders)
