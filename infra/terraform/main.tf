@@ -1,108 +1,98 @@
-######################
-# Naming helpers
-######################
-locals {
-  base                    = lower(replace(var.prefix, "-", ""))
-  storage_account_name    = substr("${local.base}adls", 0, 24) # 3-24 chars, lowercase, no dashes
-  storage_filesystem_name = "synapse"
-}
 
-######################
-# Resource Group
-######################
 resource "azurerm_resource_group" "rg" {
-  name     = "${var.prefix}-rg"
+  name     = local.rg_name
   location = var.location
 }
 
-######################
-# Storage (ADLS Gen2)
-######################
-resource "azurerm_storage_account" "adls" {
-  name                            = local.storage_account_name
-  resource_group_name             = azurerm_resource_group.rg.name
-  location                        = azurerm_resource_group.rg.location
-  account_tier                    = "Standard"
-  account_replication_type        = "LRS"
-  account_kind                    = "StorageV2"
-  is_hns_enabled                  = true
-  allow_nested_items_to_be_public = false,
-  blob_properties {
-      versioning_enabled = true
-      delete_retention_policy { days = 7 }
-      container_delete_retention_policy { days = 7 }
-
-  }
+resource "azurerm_storage_account" "sa" {
+  name                     = local.sa_name
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = var.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  account_kind             = "StorageV2"
+  is_hns_enabled           = true
 }
 
-# Raw container for landings
-resource "azurerm_storage_container" "raw" {
-  name                  = "raw"
-  storage_account_name  = azurerm_storage_account.adls.name
-  container_access_type = "private"
+resource "azurerm_storage_data_lake_gen2_filesystem" "raw" {
+  name               = local.fs_raw_name
+  storage_account_id = azurerm_storage_account.sa.id
 }
 
-# Filesystem that Synapse workspace uses
-resource "azurerm_storage_data_lake_gen2_filesystem" "wsfs" {
-  name               = local.storage_filesystem_name
-  storage_account_id = azurerm_storage_account.adls.id
-}
-
-
-######################
-# Synapse Workspace + Dedicated SQL Pool
-######################
 resource "azurerm_synapse_workspace" "syn" {
-  name                                 = "${var.prefix}-syn"
-  resource_group_name                  = azurerm_resource_group.rg.name
-  location                             = azurerm_resource_group.rg.location
-  storage_data_lake_gen2_filesystem_id = azurerm_storage_data_lake_gen2_filesystem.wsfs.id
-
-  sql_administrator_login    = var.synapse_sql_admin_login
+  name                             = local.syn_ws_name
+  resource_group_name              = azurerm_resource_group.rg.name
+  location                         = var.location
+  sql_administrator_login          = var.synapse_sql_admin_login
   sql_administrator_login_password = var.synapse_sql_admin_password
+  public_network_access_enabled    = true
+  managed_virtual_network_enabled  = false
 
-  identity { type = "SystemAssigned" }
+  identity {
+    type = "SystemAssigned"
+  }
+
+  storage_data_lake_gen2_filesystem_id = azurerm_storage_data_lake_gen2_filesystem.raw.id
 }
 
-# Allow Azure Services (0.0.0.0) 
-resource "azurerm_synapse_firewall_rule" "allow_azure" {
-  name                 = "AllowAllWindowsAzureIps"
-  synapse_workspace_id = azurerm_synapse_workspace.syn.id
-  start_ip_address     = "0.0.0.0"
-  end_ip_address       = "0.0.0.0"
-}
-
-resource "azurerm_synapse_sql_pool" "sqlpool" {
-  name                 = "${var.prefix}_sqlpool"
+resource "azurerm_synapse_sql_pool" "dw" {
+  name                 = local.sql_pool_name
   synapse_workspace_id = azurerm_synapse_workspace.syn.id
   sku_name             = "DW100c"
   create_mode          = "Default"
 }
 
 
-######################
-# Azure Data Factory (MI)
-######################
-resource "azurerm_data_factory" "adf" {
-  name                = "${var.prefix}-adf"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+resource "azurerm_synapse_spark_pool" "sp" {
+  name                 = local.spark_pool
+  synapse_workspace_id = azurerm_synapse_workspace.syn.id
 
+  node_size_family = var.spark_node_family
+  node_size        = var.spark_node_size
+  spark_version    = var.spark_version # e.g., "3.3"
+
+  auto_scale {
+    min_node_count = var.spark_min_nodes
+    max_node_count = var.spark_max_nodes
+  }
+  auto_pause {
+    delay_in_minutes = var.spark_auto_pause_mins
+  }
+}
+
+resource "azurerm_data_factory" "adf" {
+  name                = local.adf_name
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
   identity { type = "SystemAssigned" }
 }
 
+# RBAC: Synapse MI -> Storage
+resource "azurerm_role_assignment" "syn_to_storage" {
+  scope                = azurerm_storage_account.sa.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_synapse_workspace.syn.identity[0].principal_id
+}
 
-######################
-# RBAC access for ADF and Synapse access to the storage
-######################
-resource "azurerm_role_assignment" "adf_to_storage_rbac" {
-  scope                = azurerm_storage_account.adls.id
+# RBAC: ADF MI -> Storage
+resource "azurerm_role_assignment" "adf_to_storage" {
+  scope                = azurerm_storage_account.sa.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_data_factory.adf.identity[0].principal_id
 }
 
-resource "azurerm_role_assignment" "synapse_to_storage_rbac" {
-  scope                = azurerm_storage_account.adls.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_synapse_workspace.syn.identity[0].principal_id
+# RBAC: ADF MI -> Synapse (management plane)
+resource "azurerm_role_assignment" "adf_to_synapse" {
+  scope                = azurerm_synapse_workspace.syn.id
+  role_definition_name = "Synapse Contributor"
+  principal_id         = azurerm_data_factory.adf.identity[0].principal_id
+}
+
+# Optional: Synapse firewall allow your IP
+resource "azurerm_synapse_firewall_rule" "client" {
+  count                = var.client_ip == null ? 0 : 1
+  name                 = "AllowClientIP"
+  synapse_workspace_id = azurerm_synapse_workspace.syn.id
+  start_ip_address     = var.client_ip
+  end_ip_address       = var.client_ip
 }
