@@ -97,7 +97,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "endswith(item().name, '.parquet')",
+									"value": "@and(\n  equals(item().type, 'File'),\n  equals(toLower(last(split(item().name, '.'))), 'parquet')\n)\n",
 									"type": "Expression"
 								},
 								"ifTrueActivities": [
