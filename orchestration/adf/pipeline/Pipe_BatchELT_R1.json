@@ -96,6 +96,10 @@
 							"dependsOn": [],
 							"userProperties": [],
 							"typeProperties": {
+								"expression": {
+									"value": "endswith(item().name, '.parquet')",
+									"type": "Expression"
+								},
 								"ifTrueActivities": [
 									{
 										"name": "TranscodeToSnappy",
