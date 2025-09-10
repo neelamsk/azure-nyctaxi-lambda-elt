@@ -114,7 +114,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "11411da8-99a0-47f3-ba77-b94d8b625246"
+						"spark.autotune.trackingId": "5641f067-032a-4cef-8de7-8f78754d00dc"
 					}
 				},
 				"metadata": {
@@ -139,15 +139,13 @@
 						"sparkVersion": "3.4",
 						"nodeCount": 10,
 						"cores": 4,
-						"memory": 28,
-						"automaticScaleJobs": false
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
 				"cells": [
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"# Synapse: read ADF Notebook activity parameters via job tags.\n",
 							"# When you run manually in Studio, it falls back to the defaults below.\n",
@@ -176,7 +174,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"from notebookutils import mssparkutils\n",
 							"\n",
@@ -195,31 +192,75 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
+							"# === DROP-IN: Transcode to Snappy (with decimal widening + cleanup) ===\n",
 							"from notebookutils import mssparkutils\n",
+							"from pyspark.sql.types import DecimalType\n",
+							"from pyspark.sql.functions import col\n",
+							"\n",
+							"# Get parameters from ADF (falls back to defaults when run manually)\n",
+							"def get_param(name, default):\n",
+							"    try:\n",
+							"        v = mssparkutils.env.getJobTag(name)\n",
+							"        if v and v.lower() != \"null\":\n",
+							"            return v\n",
+							"    except Exception:\n",
+							"        pass\n",
+							"    return default\n",
 							"\n",
 							"acct = \"eltazr1adls\"\n",
+							"ingest_date = get_param(\"ingest_date\", \"2025-07-01\")\n",
+							"file_name   = get_param(\"file_name\",   \"yellow_tripdata_2025-07.parquet\")\n",
 							"\n",
 							"src = f\"abfss://raw@{acct}.dfs.core.windows.net/nyc_taxi/ingest_date={ingest_date}/{file_name}\"\n",
 							"dst = f\"abfss://raw@{acct}.dfs.core.windows.net/nyc_taxi_snappy/ingest_date={ingest_date}/file_name={file_name}/\"\n",
 							"\n",
-							"# Read the original parquet (ZSTD), write as Snappy\n",
+							"# Optional self-skip if output already exists\n",
+							"if mssparkutils.fs.exists(dst):\n",
+							"    try:\n",
+							"        if len(mssparkutils.fs.ls(dst)) > 0:\n",
+							"            print(f\"[SKIP] Snappy already present for {file_name} on {ingest_date}: {dst}\")\n",
+							"            mssparkutils.notebook.exit(\"SKIP\")\n",
+							"    except Exception:\n",
+							"        pass\n",
+							"\n",
+							"# Read original parquet\n",
 							"df = spark.read.parquet(src)\n",
 							"\n",
-							"# If files are big, you may remove coalesce(1); leaving it keeps one snappy file per input file_name\n",
+							"# ---- widen DECIMALs so Synapse COPY doesn't choke (INT64→Binary) ----\n",
+							"def widen_decimals_for_synapse(df):\n",
+							"    cols = []\n",
+							"    for f in df.schema.fields:\n",
+							"        c = col(f.name)\n",
+							"        if isinstance(f.dataType, DecimalType) and f.dataType.precision <= 18:\n",
+							"            c = c.cast(\"decimal(38,10)\")\n",
+							"        cols.append(c.alias(f.name))\n",
+							"    return df.select(*cols)\n",
+							"\n",
+							"df = widen_decimals_for_synapse(df)\n",
+							"\n",
+							"# Write as Snappy (idempotent)\n",
 							"(df.coalesce(1)\n",
 							"   .write\n",
-							"   .mode(\"overwrite\")                # idempotent for reruns/backfills\n",
-							"   .option(\"compression\",\"snappy\")\n",
+							"   .mode(\"overwrite\")\n",
+							"   .option(\"compression\", \"snappy\")\n",
 							"   .parquet(dst))\n",
 							"\n",
-							"print(\"Wrote:\", dst)\n",
-							"display(mssparkutils.fs.ls(dst))\n",
+							"# Remove non-parquet artifacts (e.g., _SUCCESS)\n",
+							"for f in mssparkutils.fs.ls(dst):\n",
+							"    name = f.name if hasattr(f, \"name\") else f.path.rsplit(\"/\", 1)[-1]\n",
+							"    if not name.lower().endswith(\".parquet\"):\n",
+							"        try:\n",
+							"            mssparkutils.fs.rm(f.path, recurse=True)\n",
+							"            print(\"Deleted:\", f.path)\n",
+							"        except Exception as e:\n",
+							"            print(\"Skip delete\", f.path, \"->\", e)\n",
+							"\n",
+							"print(\"[OK] Wrote:\", dst)\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 7
 					}
 				]
 			},
