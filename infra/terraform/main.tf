@@ -84,7 +84,7 @@ resource "azurerm_role_assignment" "adf_to_storage" {
 # RBAC: ADF MI -> Synapse (management plane)
 resource "azurerm_role_assignment" "adf_to_synapse" {
   scope                = azurerm_synapse_workspace.syn.id
-  role_definition_name = "Synapse Contributor"
+  role_definition_name = "Contributor"
   principal_id         = azurerm_data_factory.adf.identity[0].principal_id
 }
 
