@@ -20,7 +20,7 @@ variable "synapse_sql_admin_password" {
 # Optional tunables (safe defaults are OK here)
 variable "spark_node_family" {
   type    = string
-  default = "None"
+  default = "MemoryOptimized"
 } # or "MemoryOptimized"
 
 
