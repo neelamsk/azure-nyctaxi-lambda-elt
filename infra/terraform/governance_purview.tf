@@ -32,19 +32,29 @@ resource "azurerm_role_assignment" "pvw_sa_reader" {
   role_definition_name = "Reader"
   principal_id         = azurerm_purview_account.pvw.identity[0].principal_id
 }
+# The following resources assign the necessary roles to the Purview managed identity
+# so it can scan the Azure Data Lake Storage (ADLS) Gen2 account.
+#
+# 1. "pvw_sa_blob_reader": Grants the Purview account's managed identity the
+#    "Storage Blob Data Reader" role on the storage account. This allows Purview
+#    to read data at the data plane level, which is required for scanning files.
+#
+# 2. "pvw_sa_reader": Grants the Purview account's managed identity the
+#    "Reader" role on the storage account. This provides control-plane read access,
+#    allowing Purview to enumerate containers and other storage account metadata.
 
 # -------- RBAC to let ADF emit lineage to Purview --------
 # Grant ADF's managed identity Data Curator on the Purview account.
-resource "azurerm_role_assignment" "adf_pvw_curator" {
-  scope                = azurerm_purview_account.pvw.id
-  role_definition_name = "Purview Data Curator"
-  principal_id         = azurerm_data_factory.adf.identity[0].principal_id
-}
-
+# resource "azurerm_role_assignment" "adf_pvw_curator" {
+#   scope                = azurerm_purview_account.pvw.id
+#   role_definition_name = "Purview Data Curator"
+#   principal_id         = azurerm_data_factory.adf.identity[0].principal_id
+# }
+# 
 # Synapse can browse catalog; Reader is usually enough:
-resource "azurerm_role_assignment" "syn_pvw_reader" {
-  count                = var.enable_synapse_purview_browse ? 1 : 0
-  scope                = azurerm_purview_account.pvw.id
-  role_definition_name = "Purview Data Reader"
-  principal_id         = azurerm_synapse_workspace.syn.identity[0].principal_id
-}
+# resource "azurerm_role_assignment" "syn_pvw_reader" {
+#   count                = var.enable_synapse_purview_browse ? 1 : 0
+#   scope                = azurerm_purview_account.pvw.id
+#   role_definition_name = "Purview Data Reader"
+#   principal_id         = azurerm_synapse_workspace.syn.identity[0].principal_id
+# }
