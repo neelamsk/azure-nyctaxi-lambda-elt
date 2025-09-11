@@ -6,7 +6,7 @@ terraform {
       version = "~> 3.100"
     }
   }
-  backend "local" {} # (This can be switched to azurerm backend later)
+  backend "azurerm" {}
 }
 
 provider "azurerm" {
