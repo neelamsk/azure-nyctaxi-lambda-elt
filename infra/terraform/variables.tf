@@ -3,7 +3,9 @@ variable "prefix" {
   type = string
 }
 variable "location" {
-  type = string
+  description = "Azure region"
+  type        = string
+  default     = "eastus2"
 }
 
 # Synapse SQL Admin (for the Dedicated SQL Pool)
@@ -44,7 +46,7 @@ variable "spark_auto_pause_mins" {
   default = 15
 }
 
-# Optional: allowlist your IP on Synapse firewall during dev
+# allowlist your IP on Synapse firewall during dev
 variable "client_ip" {
   type    = string
   default = null
@@ -53,4 +55,34 @@ variable "client_ip" {
 variable "spark_version" {
   type    = string
   default = "3.3"
+}
+
+
+# Purview governance related vairables
+variable "gov_rg_name" {
+  description = "Resource group for governance (Purview)"
+  type        = string
+  default     = "eltazr3-governance-rg"
+}
+
+variable "purview_account_name" {
+  description = "Purview account name (globally unique in tenant)"
+  type        = string
+  default     = "pvw-eltazr3-dev"
+}
+
+variable "enable_synapse_purview_browse" {
+  description = "Grant Synapse MI Purview Data Reader so it can browse the catalog"
+  type        = bool
+  default     = true
+}
+
+
+variable "tags" {
+  description = "Common resource tags"
+  type        = map(string)
+  default = {
+    env   = "dev"
+    owner = "da-project"
+  }
 }
