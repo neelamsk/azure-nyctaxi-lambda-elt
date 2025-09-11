@@ -16,7 +16,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: infra
+        working-directory: infra/terraform
     steps:
       - uses: actions/checkout@v4
 
