@@ -1,5 +1,5 @@
-prefix   = "eltazr2"
-location = "eastus"
+prefix   = "eltazr3"
+location = "eastus2"
 
 # optional (only if you want to override defaults)
 # spark_node_family     = "GeneralPurpose"
