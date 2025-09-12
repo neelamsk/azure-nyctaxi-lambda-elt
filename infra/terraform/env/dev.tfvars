@@ -15,7 +15,7 @@ spark_node_size       = "Small"
 spark_min_nodes       = 3
 spark_max_nodes       = 3
 spark_auto_pause_mins = 15
-spark_version         = "3.3"
+spark_version         = "3.4"
 
 # ---- networking (optional for dev firewall testing) ----
 # client_ip = "66.234.34.103"
@@ -37,4 +37,5 @@ tags = {
   owner = "da-project"
 }
 
-synapse_storage_account_type = "LRS"
+synapse_storage_account_type      = "LRS"
+synapse_geo_backup_policy_enabled = false

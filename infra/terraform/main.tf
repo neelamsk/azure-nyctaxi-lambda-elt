@@ -50,11 +50,12 @@ resource "azurerm_synapse_workspace" "syn" {
 }
 
 resource "azurerm_synapse_sql_pool" "dw" {
-  name                 = local.sql_pool_name
-  synapse_workspace_id = azurerm_synapse_workspace.syn.id
-  sku_name             = "DW100c"
-  create_mode          = "Default"
-  storage_account_type = var.synapse_storage_account_type
+  name                      = local.sql_pool_name
+  synapse_workspace_id      = azurerm_synapse_workspace.syn.id
+  sku_name                  = "DW100c"
+  create_mode               = "Default"
+  storage_account_type      = var.synapse_storage_account_type
+  geo_backup_policy_enabled = var.synapse_geo_backup_policy_enabled
 }
 
 
