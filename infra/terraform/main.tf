@@ -14,7 +14,7 @@ resource "azurerm_storage_account" "sa" {
   is_hns_enabled           = true
 
   blob_properties {
-    versioning_enabled = true
+    # versioning_enabled = true
 
     delete_retention_policy {
       days = 30
@@ -47,6 +47,8 @@ resource "azurerm_synapse_workspace" "syn" {
   }
 
   storage_data_lake_gen2_filesystem_id = azurerm_storage_data_lake_gen2_filesystem.raw.id
+
+  purview_id = azurerm_purview_account.pvw.id
 }
 
 resource "azurerm_synapse_sql_pool" "dw" {
