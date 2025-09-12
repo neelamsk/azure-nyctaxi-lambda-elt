@@ -95,3 +95,8 @@ variable "worm_days" {
   type    = number
   default = 3
 }
+
+variable "synapse_storage_account_type" {
+  type    = string
+  default = "LRS"
+}
