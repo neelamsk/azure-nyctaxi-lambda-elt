@@ -33,6 +33,11 @@ resource "azurerm_storage_data_lake_gen2_filesystem" "raw" {
   storage_account_id = azurerm_storage_account.sa.id
 }
 
+resource "azurerm_storage_data_lake_gen2_filesystem" "synapse" {
+  name               = local.fs_synapse_name
+  storage_account_id = azurerm_storage_account.sa.id
+}
+
 resource "azurerm_synapse_workspace" "syn" {
   name                             = local.syn_ws_name
   resource_group_name              = azurerm_resource_group.rg.name
@@ -46,7 +51,7 @@ resource "azurerm_synapse_workspace" "syn" {
     type = "SystemAssigned"
   }
 
-  storage_data_lake_gen2_filesystem_id = azurerm_storage_data_lake_gen2_filesystem.raw.id
+  storage_data_lake_gen2_filesystem_id = azurerm_storage_data_lake_gen2_filesystem.synapse.id
 
   purview_id = azurerm_purview_account.pvw.id
 }
