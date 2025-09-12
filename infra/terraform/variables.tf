@@ -63,7 +63,7 @@ variable "client_ip" {
 
 variable "spark_version" {
   type    = string
-  default = "3.3"
+  default = "3.4"
 }
 
 
@@ -94,4 +94,14 @@ variable "enable_worm" {
 variable "worm_days" {
   type    = number
   default = 3
+}
+
+variable "synapse_storage_account_type" {
+  type    = string
+  default = "LRS"
+}
+
+variable "synapse_geo_backup_policy_enabled" {
+  type    = bool
+  default = false
 }

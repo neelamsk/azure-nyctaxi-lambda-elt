@@ -23,6 +23,8 @@ resource "azurerm_storage_account" "sa" {
     container_delete_retention_policy {
       days = 30
     }
+
+    change_feed_enabled = true
   }
 }
 
@@ -48,10 +50,12 @@ resource "azurerm_synapse_workspace" "syn" {
 }
 
 resource "azurerm_synapse_sql_pool" "dw" {
-  name                 = local.sql_pool_name
-  synapse_workspace_id = azurerm_synapse_workspace.syn.id
-  sku_name             = "DW100c"
-  create_mode          = "Default"
+  name                      = local.sql_pool_name
+  synapse_workspace_id      = azurerm_synapse_workspace.syn.id
+  sku_name                  = "DW100c"
+  create_mode               = "Default"
+  storage_account_type      = var.synapse_storage_account_type
+  geo_backup_policy_enabled = var.synapse_geo_backup_policy_enabled
 }
 
 
@@ -119,7 +123,7 @@ data "azurerm_storage_container" "raw_container" {
 resource "azurerm_storage_container_immutability_policy" "raw_worm" {
   count = var.enable_worm ? 1 : 0
 
-  storage_container_resource_manager_id = data.azurerm_storage_container.raw_container.resource_manager_id
+  storage_container_resource_manager_id = data.azurerm_storage_container.raw_container.id
   immutability_period_in_days           = var.worm_days
 
   # Optional (usually false for lake patterns)
