@@ -8,6 +8,15 @@ variable "location" {
   default     = "eastus2"
 }
 
+variable "tags" {
+  description = "Common resource tags"
+  type        = map(string)
+  default = {
+    env   = "dev"
+    owner = "da-project"
+  }
+}
+
 # Synapse SQL Admin (for the Dedicated SQL Pool)
 variable "synapse_sql_admin_login" {
   type = string
@@ -77,12 +86,12 @@ variable "enable_synapse_purview_browse" {
   default     = true
 }
 
+variable "enable_worm" {
+  type    = bool
+  default = false # keep false in dev
+}
 
-variable "tags" {
-  description = "Common resource tags"
-  type        = map(string)
-  default = {
-    env   = "dev"
-    owner = "da-project"
-  }
+variable "worm_days" {
+  type    = number
+  default = 3
 }

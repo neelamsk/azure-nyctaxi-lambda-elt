@@ -12,6 +12,18 @@ resource "azurerm_storage_account" "sa" {
   account_replication_type = "LRS"
   account_kind             = "StorageV2"
   is_hns_enabled           = true
+
+  blob_properties {
+    versioning_enabled = true
+
+    delete_retention_policy {
+      days = 30
+    }
+
+    container_delete_retention_policy {
+      days = 30
+    }
+  }
 }
 
 resource "azurerm_storage_data_lake_gen2_filesystem" "raw" {
@@ -95,4 +107,21 @@ resource "azurerm_synapse_firewall_rule" "client" {
   synapse_workspace_id = azurerm_synapse_workspace.syn.id
   start_ip_address     = var.client_ip
   end_ip_address       = var.client_ip
+}
+
+# Look up the Blob container that backs your Gen2 filesystem "raw"
+data "azurerm_storage_container" "raw_container" {
+  name                 = azurerm_storage_data_lake_gen2_filesystem.raw.name # "raw"
+  storage_account_name = azurerm_storage_account.sa.name
+}
+
+# Correct schema for azurerm ~> 3.100
+resource "azurerm_storage_container_immutability_policy" "raw_worm" {
+  count = var.enable_worm ? 1 : 0
+
+  storage_container_resource_manager_id = data.azurerm_storage_container.raw_container.resource_manager_id
+  immutability_period_in_days           = var.worm_days
+
+  # Optional (usually false for lake patterns)
+  # protected_append_writes_enabled = false
 }
