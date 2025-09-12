@@ -24,7 +24,7 @@ resource "azurerm_storage_account" "sa" {
       days = 30
     }
 
-    change_feed_enabled = true
+    # change_feed_enabled = true
   }
 }
 
