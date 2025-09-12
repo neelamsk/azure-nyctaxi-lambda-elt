@@ -7,7 +7,7 @@ location = "eastus2"
 # Best practice: set password via environment or GitHub Actions secret:
 #   TF_VAR_synapse_sql_admin_password
 # synapse_sql_admin_login    = "synadmin"
-# synapse_sql_admin_password = "<set via env/secret>"
+# synapse_sql_admin_password = "<set via env/secret>" 
 
 # ---- spark (use defaults unless you need to change) ----
 spark_node_family     = "MemoryOptimized"
