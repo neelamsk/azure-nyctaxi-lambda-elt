@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "df94bcd2-f98e-4327-8eb4-e3c5727c8d8d"
+				"spark.autotune.trackingId": "5c2ba42e-b559-4415-9997-50d8dafe11e2"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 					"    raise ValueError(\"tgt_file_name must end with .parquet\")\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -93,7 +93,7 @@
 					"    raise FileNotFoundError(f\"Source file not found: {src_path}\")\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +106,7 @@
 					"    df.printSchema()\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -131,7 +131,7 @@
 					"    print(\"Temp dir:\", tmp_dir)\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +166,7 @@
 					"        print(\"Wrote:\", tgt_path)\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -227,7 +227,7 @@
 					"    print(\"Manifest written:\", manifest_path)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 14
 			}
 		]
 	}
