@@ -1,0 +1,17 @@
+{
+	"name": "010_create_db_roles",
+	"properties": {
+		"content": {
+			"query": "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name='role_ingest_loader')\n    CREATE ROLE role_ingest_loader;\n\n-- Allow loaders to write/read staging\nGRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::stg TO role_ingest_loader;\n-- If you’ll let ADF auto-create staging tables at first:\nGRANT ALTER, CONTROL ON SCHEMA::stg TO role_ingest_loader;  -- or use db_ddladmin temporarily\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
