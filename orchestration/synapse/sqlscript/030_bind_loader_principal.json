@@ -1,0 +1,17 @@
+{
+	"name": "030_bind_loader_principal",
+	"properties": {
+		"content": {
+			"query": "-- Variables passed at deploy time:\n--   :setvar ADF_PRINCIPAL \"eltazr3-adf\"   -- or an Entra group like 'dp-adf-loaders-dev'\n-- If you prefer objectId: use the GUID as the username string.\n\nIF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '$(ADF_PRINCIPAL)')\n    CREATE USER [$(ADF_PRINCIPAL)] FROM EXTERNAL PROVIDER;\n\n-- Either attach to custom role...\nEXEC sp_addrolemember N'role_ingest_loader', N'$(ADF_PRINCIPAL)';\n\n-- ...or use built-in roles if you prefer (comment one style out):\n-- ALTER ROLE db_datareader ADD MEMBER [$(ADF_PRINCIPAL)];\n-- ALTER ROLE db_datawriter ADD MEMBER [$(ADF_PRINCIPAL)];\n-- -- Temporary while bootstrapping table creation:\n-- ALTER ROLE db_ddladmin  ADD MEMBER [$(ADF_PRINCIPAL)];\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
