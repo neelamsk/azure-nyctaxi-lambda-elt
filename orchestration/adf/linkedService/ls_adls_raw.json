@@ -1,0 +1,10 @@
+{
+	"name": "ls_adls_raw",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobFS",
+		"typeProperties": {
+			"url": "https://eltazr3adls.dfs.core.windows.net/"
+		}
+	}
+}
