@@ -232,14 +232,28 @@
 										"userProperties": [],
 										"typeProperties": {
 											"source": {
-												"type": "BinarySource",
+												"type": "ParquetSource",
+												"additionalColumns": [
+													{
+														"name": "ingest_date",
+														"value": "@{pipeline().parameters.run_date}"
+													},
+													{
+														"name": "source_file_name",
+														"value": "@{item().name}"
+													},
+													{
+														"name": "loaded_at",
+														"value": "@{utcnow()}"
+													}
+												],
 												"storeSettings": {
 													"type": "AzureBlobFSReadSettings",
 													"recursive": true,
-													"deleteFilesAfterCompletion": false
+													"enablePartitionDiscovery": false
 												},
 												"formatSettings": {
-													"type": "BinaryReadSettings"
+													"type": "ParquetReadSettings"
 												}
 											},
 											"sink": {
@@ -247,25 +261,24 @@
 												"writeBehavior": "Insert",
 												"sqlWriterUseTableLock": false
 											},
-											"enableStaging": false
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
 										},
 										"inputs": [
 											{
-												"referenceName": "ds_raw_parquet",
+												"referenceName": "ds_raw_parquet2",
 												"type": "DatasetReference",
 												"parameters": {
-													"p_dataset": {
-														"value": "@pipeline().parameters.dataset",
-														"type": "Expression"
-													},
-													"p_run_date": {
-														"value": "@pipeline().parameters.run_date",
-														"type": "Expression"
-													},
-													"p_file_name": {
-														"value": "@if(endsWith(item().name,'.snappy.parquet'), item().name, replace(item().name, '.parquet', '.snappy.parquet'))",
-														"type": "Expression"
-													}
+													"p_dataset": "@pipeline().parameters.dataset",
+													"p_run_date": "@pipeline().parameters.run_date",
+													"p_file_name": "@iif(endsWith(item().name,'.snappy.parquet'), item().name, replace(item().name, '.parquet', '.snappy.parquet'))"
 												}
 											}
 										],
