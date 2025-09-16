@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5c2ba42e-b559-4415-9997-50d8dafe11e2"
+				"spark.autotune.trackingId": "fab53441-9391-4704-bc71-9fccf012ee78"
 			}
 		},
 		"metadata": {
@@ -59,7 +59,7 @@
 					"dataset       = \"nyctaxi_yellow\"\n",
 					"ingest_date   = \"2025-07-31\"\n",
 					"src_file_name = \"yellow_tripdata_2025-07.parquet\"          # ZSTD input\n",
-					"tgt_file_name = \"yellow_tripdata_2025-07.snappy.parquet\"   # Snappy output\n",
+					"tgt_file_name = \"yellow_tripdata_2025-07.snappy.millis.parquet\"   # Snappy output\n",
 					"\n",
 					"# ---- derived paths (don’t edit) ----\n",
 					"base_dir = f\"abfss://{file_system}@{account}.dfs.core.windows.net/{dataset}/ingest_date={ingest_date}\"\n",
@@ -122,7 +122,11 @@
 					"        mssparkutils.fs.rm(tmp_dir, recurse=True)\n",
 					"\n",
 					"    spark.conf.set(\"spark.sql.parquet.compression.codec\", \"snappy\")\n",
-					"\n",
+					"    \n",
+					"    # ensure UTC semantics and Parquet physical type = TIMESTAMP_MILLIS\n",
+					"    spark.conf.set(\"spark.sql.session.timeZone\", \"UTC\")\n",
+					"    spark.conf.set(\"spark.sql.parquet.outputTimestampType\", \"TIMESTAMP_MILLIS\")\n",
+					"    \n",
 					"    (df.coalesce(1)\n",
 					"       .write\n",
 					"       .mode(\"error\")    # error if tmp exists\n",
