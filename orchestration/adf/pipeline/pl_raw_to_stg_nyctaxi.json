@@ -127,7 +127,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "@not(endsWith(item().name,'.snappy.parquet'))",
+									"value": "@not(endsWith(item().name,'.snappy.millis.parquet'))",
 									"type": "Expression"
 								},
 								"ifTrueActivities": [
@@ -183,7 +183,7 @@
 												},
 												"tgt_file_name": {
 													"value": {
-														"value": "@replace(item().name, '.parquet', '.snappy.parquet')",
+														"value": "@replace(item().name, '.parquet', '.snappy.millis.parquet')",
 														"type": "Expression"
 													},
 													"type": "string"
@@ -560,7 +560,7 @@
 													"p_dataset": "@pipeline().parameters.dataset",
 													"p_run_date": "@pipeline().parameters.run_date",
 													"p_file_name": {
-														"value": "@if(endsWith(item().name,'.snappy.parquet'), item().name, replace(item().name, '.parquet', '.snappy.parquet'))",
+														"value": "@if(endsWith(item().name,'.snappy.millis.parquet'), item().name, replace(item().name, '.parquet', '.snappy.millis.parquet'))",
 														"type": "Expression"
 													}
 												}
