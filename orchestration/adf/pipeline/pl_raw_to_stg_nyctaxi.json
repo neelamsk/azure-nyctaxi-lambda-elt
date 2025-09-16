@@ -144,6 +144,51 @@
 										},
 										"userProperties": [],
 										"typeProperties": {
+											"notebook": {
+												"referenceName": {
+													"value": "nb_convert_parquet_to_snappy",
+													"type": "Expression"
+												},
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"account": {
+													"value": "eltazr3adls",
+													"type": "string"
+												},
+												"file_system": {
+													"value": "raw",
+													"type": "string"
+												},
+												"dataset": {
+													"value": {
+														"value": "@pipeline().parameters.dataset",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"ingest_date": {
+													"value": {
+														"value": "@pipeline().parameters.run_date",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"src_file_name": {
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"tgt_file_name": {
+													"value": {
+														"value": "@replace(item().name, '.parquet', '.snappy.parquet')",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
 											"snapshot": true,
 											"sparkPool": {
 												"referenceName": {
