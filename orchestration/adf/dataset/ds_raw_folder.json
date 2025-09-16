@@ -18,7 +18,10 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"folderPath": "@concat(dataset().p_dataset,'/ingest_date=',dataset().p_run_date)",
+				"folderPath": {
+					"value": "@concat(dataset().p_dataset,'/ingest_date=',dataset().p_run_date)",
+					"type": "Expression"
+				},
 				"fileSystem": "raw"
 			}
 		}
