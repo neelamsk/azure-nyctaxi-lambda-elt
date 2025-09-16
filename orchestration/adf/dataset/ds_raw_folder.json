@@ -1,0 +1,26 @@
+{
+	"name": "ds_raw_folder",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_adls_raw",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"p_dataset": {
+				"type": "string"
+			},
+			"p_run_date": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "@concat(dataset().p_dataset,'/ingest_date=',dataset().p_run_date)",
+				"fileSystem": "raw"
+			}
+		}
+	}
+}

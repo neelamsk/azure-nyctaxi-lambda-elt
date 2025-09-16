@@ -1,0 +1,23 @@
+{
+	"name": "pl_raw_to_stg_nyctaxi",
+	"properties": {
+		"parameters": {
+			"dataset": {
+				"type": "string",
+				"defaultValue": "nyctaxi_yellow"
+			},
+			"run_date": {
+				"type": "string",
+				"defaultValue": "@formatDateTime(utcnow(),'yyyy-MM-dd')"
+			},
+			"file_name": {
+				"type": "string"
+			},
+			"run_id": {
+				"type": "string",
+				"defaultValue": "@pipeline().RunId"
+			}
+		},
+		"annotations": []
+	}
+}
