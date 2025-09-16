@@ -210,6 +210,71 @@
 											"referenceName": "AzureSynapseArtifacts1",
 											"type": "LinkedServiceReference"
 										}
+									},
+									{
+										"name": "CopyToStaging",
+										"type": "Copy",
+										"dependsOn": [
+											{
+												"activity": "ConvertToSnappy",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "BinarySource",
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"deleteFilesAfterCompletion": false
+												},
+												"formatSettings": {
+													"type": "BinaryReadSettings"
+												}
+											},
+											"sink": {
+												"type": "SqlDWSink",
+												"writeBehavior": "Insert",
+												"sqlWriterUseTableLock": false
+											},
+											"enableStaging": false
+										},
+										"inputs": [
+											{
+												"referenceName": "ds_raw_parquet",
+												"type": "DatasetReference",
+												"parameters": {
+													"p_dataset": {
+														"value": "@pipeline().parameters.dataset",
+														"type": "Expression"
+													},
+													"p_run_date": {
+														"value": "@pipeline().parameters.run_date",
+														"type": "Expression"
+													},
+													"p_file_name": {
+														"value": "@if(endsWith(item().name,'.snappy.parquet'), item().name, replace(item().name, '.parquet', '.snappy.parquet'))",
+														"type": "Expression"
+													}
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "ds_syn_stg_trip",
+												"type": "DatasetReference"
+											}
+										]
 									}
 								]
 							}
