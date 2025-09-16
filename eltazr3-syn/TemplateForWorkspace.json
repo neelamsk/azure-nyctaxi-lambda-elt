@@ -132,7 +132,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "7eddf8a1-be91-4f51-81a2-ed44323a9f26"
+						"spark.autotune.trackingId": "35803d95-e9f8-4a80-bdec-8405197d5668"
 					}
 				},
 				"metadata": {
@@ -193,7 +193,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 2
+						"execution_count": 8
 					},
 					{
 						"cell_type": "code",
@@ -212,7 +212,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 3
+						"execution_count": 9
 					},
 					{
 						"cell_type": "code",
@@ -224,10 +224,24 @@
 							"    df = spark.read.parquet(src_path)\n",
 							"    print(\"Rows:\", df.count())\n",
 							"    df.printSchema()\n",
+							"\n",
+							"    from pyspark.sql.functions import date_format, col\n",
+							"\n",
+							"    # keep UTC semantics to avoid time shifts\n",
+							"    spark.conf.set(\"spark.sql.session.timeZone\", \"UTC\")\n",
+							"\n",
+							"    # convert problem columns to ISO-like strings ADF can cast to datetime2\n",
+							"    TS_FMT = \"yyyy-MM-dd HH:mm:ss\"   # safe for Synapse datetime2\n",
+							"    cols_to_string = [\"tpep_pickup_datetime\", \"tpep_dropoff_datetime\"]\n",
+							"\n",
+							"    for c in cols_to_string:\n",
+							"        if c in df.columns:\n",
+							"            df = df.withColumn(c, date_format(col(c), TS_FMT))\n",
+							"\n",
 							""
 						],
 						"outputs": [],
-						"execution_count": 4
+						"execution_count": 10
 					},
 					{
 						"cell_type": "code",
@@ -258,7 +272,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 5
+						"execution_count": 11
 					},
 					{
 						"cell_type": "code",
@@ -295,7 +309,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 6
+						"execution_count": 12
 					},
 					{
 						"cell_type": "code",
@@ -358,7 +372,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 7
+						"execution_count": 13
 					}
 				]
 			},
