@@ -96,7 +96,7 @@
 						"type": "Expression"
 					},
 					"condition": {
-						"value": "@and(equals(item().type, 'File'),endsWith(item().name,'.parquet'))",
+						"value": "@and(equals(item().type,'File'),\n     endsWith(item().name,'.snappy.millis.parquet'))\n",
 						"type": "Expression"
 					}
 				}
