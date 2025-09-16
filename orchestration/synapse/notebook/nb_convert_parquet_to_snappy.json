@@ -1,0 +1,234 @@
+{
+	"name": "nb_convert_parquet_to_snappy",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "spsmall",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "5c2ba42e-b559-4415-9997-50d8dafe11e2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/6c6119b6-a5fd-406b-aa20-45a34495a8d7/resourceGroups/eltazr3-rg/providers/Microsoft.Synapse/workspaces/eltazr3-syn/bigDataPools/spsmall",
+				"name": "spsmall",
+				"type": "Spark",
+				"endpoint": "https://eltazr3-syn.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/spsmall",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"# === EDIT THESE FOR YOUR RUN ===\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"account       = \"eltazr3adls\"                 # ADLS account\n",
+					"file_system   = \"raw\"                         # container\n",
+					"dataset       = \"nyctaxi_yellow\"\n",
+					"ingest_date   = \"2025-07-31\"\n",
+					"src_file_name = \"yellow_tripdata_2025-07.parquet\"          # ZSTD input\n",
+					"tgt_file_name = \"yellow_tripdata_2025-07.snappy.parquet\"   # Snappy output\n",
+					"\n",
+					"# ---- derived paths (don’t edit) ----\n",
+					"base_dir = f\"abfss://{file_system}@{account}.dfs.core.windows.net/{dataset}/ingest_date={ingest_date}\"\n",
+					"src_path = f\"{base_dir}/{src_file_name}\"\n",
+					"tgt_path = f\"{base_dir}/{tgt_file_name}\"\n",
+					"\n",
+					"print(\"Source:\", src_path)\n",
+					"print(\"Target:\", tgt_path)\n",
+					"\n",
+					"# Guardrails\n",
+					"if src_file_name == tgt_file_name:\n",
+					"    raise ValueError(\"src_file_name and tgt_file_name are identical; choose a different target name\")\n",
+					"if not tgt_file_name.endswith(\".parquet\"):\n",
+					"    raise ValueError(\"tgt_file_name must end with .parquet\")\n",
+					""
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"skip = False\n",
+					"\n",
+					"# If target already exists, we skip conversion but can still (later) write a manifest if missing.\n",
+					"if mssparkutils.fs.exists(tgt_path):\n",
+					"    print(f\"SKIP: target already exists → {tgt_path}\")\n",
+					"    skip = True\n",
+					"\n",
+					"# Source must exist unless we're skipping\n",
+					"if not skip and not mssparkutils.fs.exists(src_path):\n",
+					"    raise FileNotFoundError(f\"Source file not found: {src_path}\")\n",
+					""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if skip:\n",
+					"    print(\"SKIP: read step (target exists).\")\n",
+					"else:\n",
+					"    df = spark.read.parquet(src_path)\n",
+					"    print(\"Rows:\", df.count())\n",
+					"    df.printSchema()\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if skip:\n",
+					"    print(\"SKIP: write step (target exists).\")\n",
+					"else:\n",
+					"    from uuid import uuid4\n",
+					"    tmp_dir = f\"{base_dir}/_tmp_snappy_{uuid4().hex}\"\n",
+					"\n",
+					"    # Clean stale tmp dir if present (rare)\n",
+					"    if mssparkutils.fs.exists(tmp_dir):\n",
+					"        mssparkutils.fs.rm(tmp_dir, recurse=True)\n",
+					"\n",
+					"    spark.conf.set(\"spark.sql.parquet.compression.codec\", \"snappy\")\n",
+					"\n",
+					"    (df.coalesce(1)\n",
+					"       .write\n",
+					"       .mode(\"error\")    # error if tmp exists\n",
+					"       .parquet(tmp_dir))\n",
+					"\n",
+					"    print(\"Temp dir:\", tmp_dir)\n",
+					""
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if skip:\n",
+					"    print(\"SKIP: rename step (target exists).\")\n",
+					"else:\n",
+					"    parts = [f.path for f in mssparkutils.fs.ls(tmp_dir) if f.path.lower().endswith(\".parquet\")]\n",
+					"    if len(parts) != 1:\n",
+					"        # Clean up then error to avoid leaks\n",
+					"        for f in mssparkutils.fs.ls(tmp_dir):\n",
+					"            mssparkutils.fs.rm(f.path, recurse=True)\n",
+					"        mssparkutils.fs.rm(tmp_dir, recurse=True)\n",
+					"        raise RuntimeError(f\"Expected 1 part file, found {len(parts)}: {parts}\")\n",
+					"\n",
+					"    part_path = parts[0]\n",
+					"    print(\"Part file:\", part_path)\n",
+					"    print(\"Target   :\", tgt_path)\n",
+					"\n",
+					"    # Final guard: if target suddenly exists, skip and clean temp\n",
+					"    if mssparkutils.fs.exists(tgt_path):\n",
+					"        for f in mssparkutils.fs.ls(tmp_dir):\n",
+					"            mssparkutils.fs.rm(f.path, recurse=True)\n",
+					"        mssparkutils.fs.rm(tmp_dir, recurse=True)\n",
+					"        print(f\"SKIP: target appeared during run → {tgt_path}\")\n",
+					"    else:\n",
+					"        mssparkutils.fs.mv(part_path, tgt_path)\n",
+					"        # Remove remaining tmp artifacts (_SUCCESS, etc.)\n",
+					"        for f in mssparkutils.fs.ls(tmp_dir):\n",
+					"            mssparkutils.fs.rm(f.path, recurse=True)\n",
+					"        mssparkutils.fs.rm(tmp_dir, recurse=True)\n",
+					"        print(\"Wrote:\", tgt_path)\n",
+					""
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# === Cell 6 (revised): Write manifest for the Snappy file (no overwrite) ===\n",
+					"import json, hashlib\n",
+					"from uuid import uuid4\n",
+					"from datetime import datetime, timezone\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# Ensure target exists (either from skip or from this run)\n",
+					"if not mssparkutils.fs.exists(tgt_path):\n",
+					"    raise FileNotFoundError(f\"Expected target not found: {tgt_path}\")\n",
+					"\n",
+					"# Size from listing\n",
+					"info = mssparkutils.fs.ls(tgt_path)[0]\n",
+					"size_bytes = info.size\n",
+					"\n",
+					"# Try to compute MD5 using Spark's binaryFile reader\n",
+					"md5_hex = \"UNAVAILABLE\"\n",
+					"try:\n",
+					"    # Some runtimes accept a single-file path directly; if not, fall back to loading the folder and filtering\n",
+					"    try:\n",
+					"        bf = spark.read.format(\"binaryFile\").load(tgt_path)\n",
+					"    except Exception:\n",
+					"        bf = (spark.read.format(\"binaryFile\")\n",
+					"              .load(base_dir)\n",
+					"              .where(F.col(\"path\") == tgt_path))\n",
+					"    row = bf.select(\"content\").head()\n",
+					"    if row is not None and row.content is not None:\n",
+					"        md5_hex = hashlib.md5(row.content).hexdigest()\n",
+					"        print(\"MD5 computed via binaryFile.\")\n",
+					"    else:\n",
+					"        print(\"binaryFile returned no content; MD5 set to UNAVAILABLE.\")\n",
+					"except Exception as e:\n",
+					"    print(\"MD5 computation skipped:\", e)\n",
+					"\n",
+					"ts_utc = datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H:%M:%SZ\")\n",
+					"manifest_path = f\"{base_dir}/_INGESTION_{tgt_file_name}.json\"\n",
+					"\n",
+					"manifest = {\n",
+					"  \"dataset\": dataset,\n",
+					"  \"ingest_date\": ingest_date,\n",
+					"  \"file\": tgt_file_name,\n",
+					"  \"bytes\": size_bytes,\n",
+					"  \"md5\": md5_hex,\n",
+					"  \"source\": \"synapse-spark zstd→snappy\",\n",
+					"  \"run_id\": str(uuid4()),\n",
+					"  \"run_by\": \"synapse-mi\",\n",
+					"  \"status\": \"SUCCEEDED\",\n",
+					"  \"ts_utc\": ts_utc\n",
+					"}\n",
+					"\n",
+					"if mssparkutils.fs.exists(manifest_path):\n",
+					"    print(\"Manifest already exists:\", manifest_path)\n",
+					"else:\n",
+					"    mssparkutils.fs.put(manifest_path, json.dumps(manifest, indent=2), overwrite=False)\n",
+					"    print(\"Manifest written:\", manifest_path)\n",
+					""
+				],
+				"execution_count": 14
+			}
+		]
+	}
+}

@@ -1,0 +1,186 @@
+{
+	"name": "pl_raw_to_stg_nyctaxi",
+	"properties": {
+		"activities": [
+			{
+				"name": "DeleteStagingPartition",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "DELETE FROM stg.trip WHERE ingest_date = '@{pipeline().parameters.run_date}';\n",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "GetFileList",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "DeleteStagingPartition",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_raw_folder",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_dataset": {
+								"value": "p_dataset = @pipeline().parameters.dataset",
+								"type": "Expression"
+							},
+							"p_run_date": {
+								"value": "p_run_date = @pipeline().parameters.run_date",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "FilterParquet",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "GetFileList",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('GetFileList').output.childItems",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(equals(item().type, 'File'),endsWith(item().name,'.parquet'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "FilterParquet",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('FilterParquet').output.value",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "IfNeedsSnappy",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@not(endsWith(item().name,'.snappy.parquet'))",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "ConvertToSnappy",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										},
+										"linkedServiceName": {
+											"referenceName": "AzureSynapseArtifacts1",
+											"type": "LinkedServiceReference"
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"dataset": {
+				"type": "string",
+				"defaultValue": "nyctaxi_yellow"
+			},
+			"run_date": {
+				"type": "string",
+				"defaultValue": "@formatDateTime(utcnow(),'yyyy-MM-dd')"
+			},
+			"file_name": {
+				"type": "string"
+			},
+			"run_id": {
+				"type": "string",
+				"defaultValue": "@pipeline().RunId"
+			}
+		},
+		"annotations": []
+	}
+}
