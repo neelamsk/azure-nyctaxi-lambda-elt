@@ -145,11 +145,20 @@
 										"userProperties": [],
 										"typeProperties": {
 											"snapshot": true,
+											"sparkPool": {
+												"referenceName": {
+													"value": "spsmall",
+													"type": "Expression"
+												},
+												"type": "BigDataPoolReference"
+											},
+											"executorSize": "Small",
 											"conf": {
 												"spark.dynamicAllocation.enabled": null,
 												"spark.dynamicAllocation.minExecutors": null,
 												"spark.dynamicAllocation.maxExecutors": null
 											},
+											"driverSize": "Small",
 											"numExecutors": null
 										},
 										"linkedServiceName": {
