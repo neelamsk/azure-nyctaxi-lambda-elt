@@ -56,11 +56,11 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"p_dataset": {
-								"value": "p_dataset = @pipeline().parameters.dataset",
+								"value": "@pipeline().parameters.dataset",
 								"type": "Expression"
 							},
 							"p_run_date": {
-								"value": "p_run_date = @pipeline().parameters.run_date",
+								"value": "@pipeline().parameters.run_date",
 								"type": "Expression"
 							}
 						}
