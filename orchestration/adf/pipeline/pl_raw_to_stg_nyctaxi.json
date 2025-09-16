@@ -577,6 +577,39 @@
 									"type": "DatasetReference"
 								}
 							]
+						},
+						{
+							"name": "DQ_Rowcount",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "CopyToStaging_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_syn_sql",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\nIF NOT EXISTS (SELECT 1 FROM stg.trip WHERE ingest_date = @d)\n    THROW 51000, 'DQ: zero rows after load', 1;\n"
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
 						}
 					]
 				}
