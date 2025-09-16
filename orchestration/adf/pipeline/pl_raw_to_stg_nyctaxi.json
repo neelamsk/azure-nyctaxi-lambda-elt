@@ -562,7 +562,7 @@
 													"p_dataset": "@pipeline().parameters.dataset",
 													"p_run_date": "@pipeline().parameters.run_date",
 													"p_file_name": {
-														"value": "@if(endsWith(item().name,'.snappy.millis.parquet'), item().name, replace(item().name, '.parquet', '.snappy.millis.parquet'))",
+														"value": "@item().name\n",
 														"type": "Expression"
 													}
 												}
