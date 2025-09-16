@@ -17,7 +17,9 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7078bdd6-2131-432a-983a-cfa9a8b40057"
+
+				"spark.autotune.trackingId": "8af80fac-056b-4931-941a-bf27bde8d118"
+
 			}
 		},
 		"metadata": {
@@ -76,7 +78,9 @@
 					"    raise ValueError(\"tgt_file_name must end with .parquet\")\n",
 					""
 				],
-				"execution_count": 2
+
+				"execution_count": 8
+
 			},
 			{
 				"cell_type": "code",
@@ -93,7 +97,9 @@
 					"    raise FileNotFoundError(f\"Source file not found: {src_path}\")\n",
 					""
 				],
-				"execution_count": 3
+
+				"execution_count": 9
+
 			},
 			{
 				"cell_type": "code",
@@ -104,9 +110,25 @@
 					"    df = spark.read.parquet(src_path)\n",
 					"    print(\"Rows:\", df.count())\n",
 					"    df.printSchema()\n",
+					"\n",
+					"    from pyspark.sql.functions import date_format, col\n",
+					"\n",
+					"    # keep UTC semantics to avoid time shifts\n",
+					"    spark.conf.set(\"spark.sql.session.timeZone\", \"UTC\")\n",
+					"\n",
+					"    # convert problem columns to ISO-like strings ADF can cast to datetime2\n",
+					"    TS_FMT = \"yyyy-MM-dd HH:mm:ss\"   # safe for Synapse datetime2\n",
+					"    cols_to_string = [\"tpep_pickup_datetime\", \"tpep_dropoff_datetime\"]\n",
+					"\n",
+					"    for c in cols_to_string:\n",
+					"        if c in df.columns:\n",
+					"            df = df.withColumn(c, date_format(col(c), TS_FMT))\n",
+					"\n",
 					""
 				],
-				"execution_count": 4
+
+				"execution_count": 10
+
 			},
 			{
 				"cell_type": "code",
@@ -135,7 +157,8 @@
 					"    print(\"Temp dir:\", tmp_dir)\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 11
+
 			},
 			{
 				"cell_type": "code",
@@ -170,7 +193,8 @@
 					"        print(\"Wrote:\", tgt_path)\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 12
+
 			},
 			{
 				"cell_type": "code",
@@ -231,7 +255,8 @@
 					"    print(\"Manifest written:\", manifest_path)\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 13
+
 			}
 		]
 	}
