@@ -22,7 +22,10 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "DELETE FROM stg.trip WHERE ingest_date = '@{pipeline().parameters.run_date}';\n"
+							"text": {
+								"value": "DELETE FROM stg.trip WHERE ingest_date = '@{pipeline().parameters.run_date}';\n",
+								"type": "Expression"
+							}
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
@@ -67,6 +70,7 @@
 					],
 					"storeSettings": {
 						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
 						"enablePartitionDiscovery": false
 					},
 					"formatSettings": {
@@ -140,7 +144,13 @@
 										},
 										"userProperties": [],
 										"typeProperties": {
-											"snapshot": true
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
 										},
 										"linkedServiceName": {
 											"referenceName": "AzureSynapseArtifacts1",
