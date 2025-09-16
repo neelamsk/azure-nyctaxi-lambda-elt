@@ -17,7 +17,9 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
+
 				"spark.autotune.trackingId": "8af80fac-056b-4931-941a-bf27bde8d118"
+
 			}
 		},
 		"metadata": {
@@ -76,7 +78,9 @@
 					"    raise ValueError(\"tgt_file_name must end with .parquet\")\n",
 					""
 				],
+
 				"execution_count": 8
+
 			},
 			{
 				"cell_type": "code",
@@ -93,7 +97,9 @@
 					"    raise FileNotFoundError(f\"Source file not found: {src_path}\")\n",
 					""
 				],
+
 				"execution_count": 9
+
 			},
 			{
 				"cell_type": "code",
@@ -120,7 +126,9 @@
 					"\n",
 					""
 				],
+
 				"execution_count": 10
+
 			},
 			{
 				"cell_type": "code",
@@ -150,6 +158,7 @@
 					""
 				],
 				"execution_count": 11
+
 			},
 			{
 				"cell_type": "code",
@@ -185,6 +194,7 @@
 					""
 				],
 				"execution_count": 12
+
 			},
 			{
 				"cell_type": "code",
@@ -246,6 +256,7 @@
 					""
 				],
 				"execution_count": 13
+
 			}
 		]
 	}
