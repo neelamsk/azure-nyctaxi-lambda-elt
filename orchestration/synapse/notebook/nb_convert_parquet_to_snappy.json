@@ -13,22 +13,17 @@
 			"executorMemory": "28g",
 			"executorCores": 4,
 			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
 			"conf": {
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-
-				"spark.autotune.trackingId": "8af80fac-056b-4931-941a-bf27bde8d118"
-
+				"spark.autotune.trackingId": "35803d95-e9f8-4a80-bdec-8405197d5668"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
 			"enableDebugMode": false,
-			"kernelspec": {
-				"name": "synapse_pyspark",
-				"display_name": "Synapse PySpark"
-			},
 			"language_info": {
 				"name": "python"
 			},
@@ -39,13 +34,14 @@
 				"endpoint": "https://eltazr3-syn.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/spsmall",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net"
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
 				},
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"automaticScaleJobs": false
+				"extraHeader": null
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -78,9 +74,7 @@
 					"    raise ValueError(\"tgt_file_name must end with .parquet\")\n",
 					""
 				],
-
 				"execution_count": 8
-
 			},
 			{
 				"cell_type": "code",
@@ -97,9 +91,7 @@
 					"    raise FileNotFoundError(f\"Source file not found: {src_path}\")\n",
 					""
 				],
-
 				"execution_count": 9
-
 			},
 			{
 				"cell_type": "code",
@@ -126,9 +118,7 @@
 					"\n",
 					""
 				],
-
 				"execution_count": 10
-
 			},
 			{
 				"cell_type": "code",
@@ -158,7 +148,6 @@
 					""
 				],
 				"execution_count": 11
-
 			},
 			{
 				"cell_type": "code",
@@ -194,7 +183,6 @@
 					""
 				],
 				"execution_count": 12
-
 			},
 			{
 				"cell_type": "code",
@@ -256,7 +244,6 @@
 					""
 				],
 				"execution_count": 13
-
 			}
 		]
 	}
