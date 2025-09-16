@@ -132,7 +132,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "2db34168-75d8-4af1-a025-995a5a0ec340"
+						"spark.autotune.trackingId": "7eddf8a1-be91-4f51-81a2-ed44323a9f26"
 					}
 				},
 				"metadata": {
@@ -175,7 +175,7 @@
 							"dataset       = \"nyctaxi_yellow\"\n",
 							"ingest_date   = \"2025-07-31\"\n",
 							"src_file_name = \"yellow_tripdata_2025-07.parquet\"          # ZSTD input\n",
-							"tgt_file_name = \"yellow_tripdata_2025-07.snappy.parquet\"   # Snappy output\n",
+							"tgt_file_name = \"yellow_tripdata_2025-07.snappy.millis.parquet\"   # Snappy output\n",
 							"\n",
 							"# ---- derived paths (don’t edit) ----\n",
 							"base_dir = f\"abfss://{file_system}@{account}.dfs.core.windows.net/{dataset}/ingest_date={ingest_date}\"\n",
@@ -193,7 +193,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 9
+						"execution_count": 2
 					},
 					{
 						"cell_type": "code",
@@ -212,7 +212,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 10
+						"execution_count": 3
 					},
 					{
 						"cell_type": "code",
@@ -227,7 +227,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 11
+						"execution_count": 4
 					},
 					{
 						"cell_type": "code",
@@ -245,6 +245,10 @@
 							"\n",
 							"    spark.conf.set(\"spark.sql.parquet.compression.codec\", \"snappy\")\n",
 							"\n",
+							"    # ensure UTC semantics and Parquet physical type = TIMESTAMP_MILLIS\n",
+							"    spark.conf.set(\"spark.sql.session.timeZone\", \"UTC\")\n",
+							"    spark.conf.set(\"spark.sql.parquet.outputTimestampType\", \"TIMESTAMP_MILLIS\")\n",
+							"\n",
 							"    (df.coalesce(1)\n",
 							"       .write\n",
 							"       .mode(\"error\")    # error if tmp exists\n",
@@ -254,7 +258,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 12
+						"execution_count": 5
 					},
 					{
 						"cell_type": "code",
@@ -291,7 +295,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 13
+						"execution_count": 6
 					},
 					{
 						"cell_type": "code",
@@ -354,7 +358,7 @@
 							""
 						],
 						"outputs": [],
-						"execution_count": 14
+						"execution_count": 7
 					}
 				]
 			},
