@@ -1,0 +1,12 @@
+{
+	"name": "AzureSynapseArtifacts1",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSynapseArtifacts",
+		"typeProperties": {
+			"endpoint": "https://eltazr3-syn.dev.azuresynapse.net",
+			"authentication": "MSI",
+			"workspaceResourceId": "/subscriptions/6c6119b6-a5fd-406b-aa20-45a34495a8d7/resourceGroups/eltazr3-rg/providers/Microsoft.Synapse/workspaces/eltazr3-syn"
+		}
+	}
+}
