@@ -554,7 +554,7 @@
 										},
 										"inputs": [
 											{
-												"referenceName": "ds_raw_parquet2",
+												"referenceName": "ds_raw_parquet",
 												"type": "DatasetReference",
 												"parameters": {
 													"p_dataset": "@pipeline().parameters.dataset",

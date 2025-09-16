@@ -1,5 +1,5 @@
 {
-	"name": "ds_raw_parquet2",
+	"name": "ds_raw_parquet",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "ls_adls_raw",
