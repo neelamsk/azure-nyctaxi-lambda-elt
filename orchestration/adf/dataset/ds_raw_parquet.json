@@ -5,6 +5,17 @@
 			"referenceName": "ls_adls_raw",
 			"type": "LinkedServiceReference"
 		},
+		"parameters": {
+			"p_dataset": {
+				"type": "string"
+			},
+			"p_run_date": {
+				"type": "string"
+			},
+			"p_file_name": {
+				"type": "string"
+			}
+		},
 		"annotations": [],
 		"type": "Binary",
 		"typeProperties": {
