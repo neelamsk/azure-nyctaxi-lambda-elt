@@ -575,15 +575,12 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "ds_raw_parquet",
+									"referenceName": "ds_raw_parquet_adf",
 									"type": "DatasetReference",
 									"parameters": {
 										"p_dataset": "@pipeline().parameters.dataset",
 										"p_run_date": "@pipeline().parameters.run_date",
-										"p_file_name": {
-											"value": "@item().name\n",
-											"type": "Expression"
-										}
+										"p_file_name": "@item().name"
 									}
 								}
 							],
