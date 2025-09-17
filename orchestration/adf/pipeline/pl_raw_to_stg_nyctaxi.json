@@ -628,7 +628,7 @@
 							"type": "Script",
 							"dependsOn": [
 								{
-									"activity": "DQ_Rowcount",
+									"activity": "CopyToStaging_copy1",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -651,6 +651,39 @@
 									{
 										"type": "Query",
 										"text": "UPDATE ops.run_log\nSET status = 'SUCCEEDED',\n    rows_copied = @{activity('CopyToStaging').output.rowsCopied},\n    finished_at_utc = SYSUTCDATETIME()\nWHERE run_id = '@{pipeline().RunId}' AND stage = 'raw_to_stg';\n"
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						},
+						{
+							"name": "UpdateTheLogWithFailure",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "CopyToStaging_copy1",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_syn_sql",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": "UPDATE ops.run_log\nSET status = 'FAILED',\n    finished_at_utc = SYSUTCDATETIME(),\n    error_message = LEFT('@{activity('CopyToStaging').error.message}', 4000)\nWHERE run_id = '@{pipeline().RunId}' AND stage = 'raw_to_stg';\n"
 									}
 								],
 								"scriptBlockExecutionTimeout": "02:00:00"
