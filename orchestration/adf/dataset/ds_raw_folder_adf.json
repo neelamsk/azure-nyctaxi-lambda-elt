@@ -2,7 +2,7 @@
 	"name": "ds_raw_folder_adf",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "ls_adls_raw",
+			"referenceName": "ls_adls_raw_adf",
 			"type": "LinkedServiceReference"
 		},
 		"parameters": {
