@@ -214,7 +214,7 @@
 											"numExecutors": null
 										},
 										"linkedServiceName": {
-											"referenceName": "AzureSynapseArtifacts1",
+											"referenceName": "AzureSynapseArtifacts2",
 											"type": "LinkedServiceReference"
 										}
 									}
