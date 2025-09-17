@@ -654,7 +654,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "INSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES ('@{pipeline().RunId}', 'raw_to_stg',\n        '@{pipeline().parameters.dataset}', '@{pipeline().parameters.run_date}',\n        'STARTED', SYSUTCDATETIME());\n",
+								"value": "DECLARE @run_id     NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage      NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @dataset    NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @ingest     DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @started    DATETIME2(3)  = SYSUTCDATETIME();\n\nINSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', @started);\n",
 								"type": "Expression"
 							}
 						}
@@ -690,7 +690,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "UPDATE ops.run_log\nSET status='SUCCEEDED',\nrows_copied = (SELECT COUNT(*) FROM stg.trip WHERE ingest_date='@{pipeline().parameters.run_date}'),\nfinished_at_utc = SYSUTCDATETIME()\nWHERE run_id='@{pipeline().RunId}' AND stage='raw_to_stg';",
+								"value": "DECLARE @run_id    NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage     NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @ingest    DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @rows      BIGINT        = (SELECT COUNT(*) FROM stg.trip WHERE ingest_date = @ingest);\nDECLARE @finished  DATETIME2(3)  = SYSUTCDATETIME();\n\nUPDATE ops.run_log\nSET status = 'SUCCEEDED',\n    rows_copied = @rows,\n    finished_at_utc = @finished\nWHERE run_id = @run_id AND stage = @stage;\n",
 								"type": "Expression"
 							}
 						}
@@ -725,7 +725,10 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "UPDATE ops.run_log\nSET status='FAILED',\n    finished_at_utc = SYSUTCDATETIME(),\n    error_message='See Monitor for failing activity details'\nWHERE run_id='@{pipeline().RunId}' AND stage='raw_to_stg';\n"
+							"text": {
+								"value": "DECLARE @run_id    NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage     NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @ingest    DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @rows      BIGINT        = (SELECT COUNT(*) FROM stg.trip WHERE ingest_date = @ingest);\nDECLARE @finished  DATETIME2(3)  = SYSUTCDATETIME();\n\nUPDATE ops.run_log\nSET status = 'FAILED',\n    rows_copied = @rows,\n    finished_at_utc = @finished\nWHERE run_id = @run_id AND stage = @stage;\n",
+								"type": "Expression"
+							}
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
