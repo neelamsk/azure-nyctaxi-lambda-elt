@@ -223,27 +223,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_syn_stg_trip')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_syn_sql",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlDWTable",
-				"schema": [],
-				"typeProperties": {
-					"schema": "stg",
-					"table": "trip"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_syn_sql')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/ds_syn_stg_trip_adf')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -888,7 +867,79 @@
 											{
 												"type": "Query",
 												"text": {
-													"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\nIF NOT EXISTS (SELECT 1 FROM stg.trip WHERE ingest_date = @d)\n    THROW 51000, 'DQ: zero rows after load', 1;\n",
+													"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='raw_to_stg';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @now    DATETIME2(3)=SYSUTCDATETIME();\nDECLARE @cnt    BIGINT;\nDECLARE @status NVARCHAR(16);\n\nSELECT @cnt = COUNT(*) FROM stg.trip WHERE ingest_date=@d;\nSET @status = CASE WHEN @cnt>0 THEN 'PASSED' ELSE 'FAILED' END;\n\nINSERT INTO ops.dq_result (run_id,stage,check_name,ingest_date,status,actual_value,threshold_value,error_message,created_at_utc)\nSELECT @run_id,@stage,'rowcount_gt_0',@d,@status,@cnt,1,NULL,@now;\n\nIF @cnt = 0\n  THROW 51000, 'DQ Rowcount failed: 0 rows loaded for ingest_date', 1;\n",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "DQ_NullPickup",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "DQ_Rowcount",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_syn_sql",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='raw_to_stg';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @now    DATETIME2(3)=SYSUTCDATETIME();\nDECLARE @bad    BIGINT;\nDECLARE @status NVARCHAR(16);\n\nSELECT @bad = COUNT(*) FROM stg.trip WHERE ingest_date=@d AND tpep_pickup_datetime IS NULL;\nSET @status = CASE WHEN @bad=0 THEN 'PASSED' ELSE 'FAILED' END;\n\nINSERT INTO ops.dq_result (run_id,stage,check_name,ingest_date,status,actual_value,threshold_value,error_message,created_at_utc)\nSELECT @run_id,@stage,'no_null_pickup_ts',@d,@status,@bad,0,NULL,@now;\n\nIF @bad > 0\n  THROW 51001, 'DQ Null pickup datetime failed', 1;\n",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "DQ_NegativeFare",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "DQ_NullPickup",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_syn_sql",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='raw_to_stg';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @now    DATETIME2(3)=SYSUTCDATETIME();\nDECLARE @neg    BIGINT;\nDECLARE @status NVARCHAR(16);\n\nSELECT @neg = COUNT(*) FROM stg.trip WHERE ingest_date=@d AND fare_amount < 0;\nSET @status = CASE WHEN @neg=0 THEN 'PASSED' ELSE 'FAILED' END;\n\nINSERT INTO ops.dq_result (run_id,stage,check_name,ingest_date,status,actual_value,threshold_value,error_message,created_at_utc)\nSELECT @run_id,@stage,'no_negative_fare',@d,@status,@neg,0,NULL,@now;\n\nIF @neg > 0\n  THROW 51002, 'DQ Negative fare failed', 1;\n",
 													"type": "Expression"
 												}
 											}
