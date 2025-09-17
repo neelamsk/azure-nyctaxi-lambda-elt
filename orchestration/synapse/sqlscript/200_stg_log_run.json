@@ -1,0 +1,17 @@
+{
+	"name": "200_stg_log_run",
+	"properties": {
+		"content": {
+			"query": "-- create schema if needed\nIF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'ops')\n    EXEC ('CREATE SCHEMA ops');\nGO\n\n-- run log table (no DEFAULT expressions)\nCREATE TABLE ops.run_log\n(\n  run_id          NVARCHAR(64)   NOT NULL,  -- pipeline().RunId\n  stage           NVARCHAR(32)   NOT NULL,  -- e.g. 'raw_to_stg'\n  dataset         NVARCHAR(128)  NOT NULL,\n  ingest_date     DATE           NOT NULL,\n  status          NVARCHAR(16)   NOT NULL,  -- STARTED|SUCCEEDED|FAILED\n  rows_copied     BIGINT         NULL,\n  started_at_utc  DATETIME2(3)   NOT NULL,\n  finished_at_utc DATETIME2(3)   NULL,\n  error_message   NVARCHAR(4000) NULL\n)\nWITH (HEAP, DISTRIBUTION = ROUND_ROBIN);\nGO\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
