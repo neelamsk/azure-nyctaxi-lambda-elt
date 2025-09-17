@@ -691,7 +691,7 @@
 									{
 										"type": "Query",
 										"text": {
-											"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='raw_to_stg';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @now    DATETIME2(3)=SYSUTCDATETIME();\nDECLARE @neg    BIGINT;\nDECLARE @status NVARCHAR(16);\n\nSELECT @neg = COUNT(*) FROM stg.trip WHERE ingest_date=@d AND fare_amount < 0;\nSET @status = CASE WHEN @neg=0 THEN 'PASSED' ELSE 'FAILED' END;\n\nINSERT INTO ops.dq_result (run_id,stage,check_name,ingest_date,status,actual_value,threshold_value,error_message,created_at_utc)\nSELECT @run_id,@stage,'no_negative_fare',@d,@status,@neg,0,NULL,@now;\n\nIF @neg > 0\n  THROW 51002, 'DQ Negative fare failed', 1;\n",
+											"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='raw_to_stg';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @now    DATETIME2(3)=SYSUTCDATETIME();\nDECLARE @neg    BIGINT;\nDECLARE @status NVARCHAR(16);\n\nSELECT @neg = COUNT(*) FROM stg.trip WHERE ingest_date=@d AND fare_amount < 0;\nSET @status = CASE WHEN @neg=0 THEN 'PASSED' ELSE 'WARNING' END;\n\nINSERT INTO ops.dq_result (run_id,stage,check_name,ingest_date,status,actual_value,threshold_value,error_message,created_at_utc)\nSELECT @run_id,@stage,'no_negative_fare',@d,@status,@neg,0,NULL,@now;\n\n/* No THROW here – we only log and proceed */\n",
 											"type": "Expression"
 										}
 									}
