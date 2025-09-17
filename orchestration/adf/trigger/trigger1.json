@@ -1,0 +1,31 @@
+{
+	"name": "trigger1",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipeline": {
+			"pipelineReference": {
+				"referenceName": "pl_raw_to_stg_nyctaxi",
+				"type": "PipelineReference"
+			},
+			"parameters": {
+				"dataset": "nyctaxi_yellow",
+				"run_date": "@formatDateTime(trigger().startTime,'yyyy-MM-dd')",
+				"run_id": "@pipeline().RunId"
+			}
+		},
+		"type": "TumblingWindowTrigger",
+		"typeProperties": {
+			"frequency": "Hour",
+			"interval": 24,
+			"startTime": "2025-09-17T14:13:00Z",
+			"endTime": "2025-09-20T14:13:00Z",
+			"delay": "00:00:00",
+			"maxConcurrency": 1,
+			"retryPolicy": {
+				"intervalInSeconds": 30
+			},
+			"dependsOn": []
+		}
+	}
+}
