@@ -1,0 +1,17 @@
+{
+	"name": "300_stg_dq",
+	"properties": {
+		"content": {
+			"query": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name='ops') EXEC('CREATE SCHEMA ops');\n\nIF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name='dq_result' AND schema_id = SCHEMA_ID('ops'))\nBEGIN\n  CREATE TABLE ops.dq_result\n  (\n    run_id           NVARCHAR(64)   NOT NULL,\n    stage            NVARCHAR(32)   NOT NULL,  -- e.g., 'raw_to_stg'\n    check_name       NVARCHAR(64)   NOT NULL,\n    ingest_date      DATE           NOT NULL,\n    status           NVARCHAR(16)   NOT NULL,  -- PASSED/FAILED\n    actual_value     BIGINT         NULL,\n    threshold_value  BIGINT         NULL,\n    error_message    NVARCHAR(4000) NULL,\n    created_at_utc   DATETIME2(3)   NOT NULL\n  )\n  WITH (DISTRIBUTION = ROUND_ROBIN, HEAP);\nEND\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
