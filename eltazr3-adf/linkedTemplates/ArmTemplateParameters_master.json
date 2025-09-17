@@ -11,7 +11,13 @@
 		"AzureSynapseArtifacts1_properties_typeProperties_endpoint": {
 			"value": "https://eltazr3-syn.dev.azuresynapse.net"
 		},
+		"AzureSynapseArtifacts2_properties_typeProperties_endpoint": {
+			"value": "https://eltazr3-syn.dev.azuresynapse.net"
+		},
 		"ls_adls_raw_properties_typeProperties_url": {
+			"value": "https://eltazr3adls.dfs.core.windows.net/"
+		},
+		"ls_adls_raw_adf_properties_typeProperties_url": {
 			"value": "https://eltazr3adls.dfs.core.windows.net/"
 		},
 		"ls_syn_sql_properties_typeProperties_server": {

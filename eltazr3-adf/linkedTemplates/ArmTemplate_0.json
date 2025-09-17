@@ -15,7 +15,15 @@
 			"type": "string",
 			"defaultValue": "https://eltazr3-syn.dev.azuresynapse.net"
 		},
+		"AzureSynapseArtifacts2_properties_typeProperties_endpoint": {
+			"type": "string",
+			"defaultValue": "https://eltazr3-syn.dev.azuresynapse.net"
+		},
 		"ls_adls_raw_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://eltazr3adls.dfs.core.windows.net/"
+		},
+		"ls_adls_raw_adf_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://eltazr3adls.dfs.core.windows.net/"
 		},
@@ -52,6 +60,21 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/AzureSynapseArtifacts2')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSynapseArtifacts",
+				"typeProperties": {
+					"endpoint": "[parameters('AzureSynapseArtifacts2_properties_typeProperties_endpoint')]",
+					"authentication": "MSI",
+					"workspaceResourceId": "/subscriptions/6c6119b6-a5fd-406b-aa20-45a34495a8d7/resourceGroups/eltazr3-rg/providers/Microsoft.Synapse/workspaces/eltazr3-syn"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ls_adls_raw')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -60,6 +83,19 @@
 				"type": "AzureBlobFS",
 				"typeProperties": {
 					"url": "[parameters('ls_adls_raw_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_adls_raw_adf')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adls_raw_adf_properties_typeProperties_url')]"
 				}
 			},
 			"dependsOn": []
@@ -87,12 +123,35 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_raw_folder')]",
+			"name": "[concat(parameters('factoryName'), '/trigger1')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"type": "TumblingWindowTrigger",
+				"typeProperties": {
+					"frequency": "Hour",
+					"interval": 24,
+					"startTime": "2025-09-17T14:13:00Z",
+					"endTime": "2025-09-20T14:13:00Z",
+					"delay": "00:00:00",
+					"maxConcurrency": 1,
+					"retryPolicy": {
+						"intervalInSeconds": 30
+					},
+					"dependsOn": []
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_raw_folder_adf')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "ls_adls_raw",
+					"referenceName": "ls_adls_raw_adf",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
@@ -117,16 +176,16 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_adls_raw')]"
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls_raw_adf')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_raw_parquet')]",
+			"name": "[concat(parameters('factoryName'), '/ds_raw_parquet_adf')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "ls_adls_raw",
+					"referenceName": "ls_adls_raw_adf",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
@@ -160,11 +219,32 @@
 				"schema": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_adls_raw')]"
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls_raw_adf')]"
 			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/ds_syn_stg_trip')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlDWTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "stg",
+					"table": "trip"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_syn_sql')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_syn_stg_trip_adf')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -193,7 +273,14 @@
 					{
 						"name": "DeleteStagingPartition",
 						"type": "Script",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "LogTheRun",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -240,7 +327,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"dataset": {
-								"referenceName": "ds_raw_folder",
+								"referenceName": "ds_raw_folder_adf",
 								"type": "DatasetReference",
 								"parameters": {
 									"p_dataset": {
@@ -395,7 +482,7 @@
 													"numExecutors": null
 												},
 												"linkedServiceName": {
-													"referenceName": "AzureSynapseArtifacts1",
+													"referenceName": "AzureSynapseArtifacts2",
 													"type": "LinkedServiceReference"
 												}
 											}
@@ -756,21 +843,18 @@
 									},
 									"inputs": [
 										{
-											"referenceName": "ds_raw_parquet",
+											"referenceName": "ds_raw_parquet_adf",
 											"type": "DatasetReference",
 											"parameters": {
 												"p_dataset": "@pipeline().parameters.dataset",
 												"p_run_date": "@pipeline().parameters.run_date",
-												"p_file_name": {
-													"value": "@item().name\n",
-													"type": "Expression"
-												}
+												"p_file_name": "@item().name"
 											}
 										}
 									],
 									"outputs": [
 										{
-											"referenceName": "ds_syn_stg_trip",
+											"referenceName": "ds_syn_stg_trip_adf",
 											"type": "DatasetReference",
 											"parameters": {}
 										}
@@ -814,6 +898,107 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "LogTheRun",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @run_id     NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage      NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @dataset    NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @ingest     DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @started    DATETIME2(3)  = SYSUTCDATETIME();\n\nINSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', @started);\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "UpdateTheLogWithSuccess",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "ForEach1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @run_id    NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage     NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @ingest    DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @rows      BIGINT        = (SELECT COUNT(*) FROM stg.trip WHERE ingest_date = @ingest);\nDECLARE @finished  DATETIME2(3)  = SYSUTCDATETIME();\n\nUPDATE ops.run_log\nSET status = 'SUCCEEDED',\n    rows_copied = @rows,\n    finished_at_utc = @finished\nWHERE run_id = @run_id AND stage = @stage;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "UpdateTheLogWithFailure",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "ForEach1",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @run_id    NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage     NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @ingest    DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @rows      BIGINT        = (SELECT COUNT(*) FROM stg.trip WHERE ingest_date = @ingest);\nDECLARE @finished  DATETIME2(3)  = SYSUTCDATETIME();\n\nUPDATE ops.run_log\nSET status = 'FAILED',\n    rows_copied = @rows,\n    finished_at_utc = @finished\nWHERE run_id = @run_id AND stage = @stage;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
 					}
 				],
 				"policy": {
@@ -840,10 +1025,10 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/ls_syn_sql')]",
-				"[concat(variables('factoryId'), '/datasets/ds_raw_folder')]",
-				"[concat(variables('factoryId'), '/datasets/ds_raw_parquet')]",
-				"[concat(variables('factoryId'), '/datasets/ds_syn_stg_trip')]",
-				"[concat(variables('factoryId'), '/linkedServices/AzureSynapseArtifacts1')]"
+				"[concat(variables('factoryId'), '/datasets/ds_raw_folder_adf')]",
+				"[concat(variables('factoryId'), '/datasets/ds_raw_parquet_adf')]",
+				"[concat(variables('factoryId'), '/datasets/ds_syn_stg_trip_adf')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSynapseArtifacts2')]"
 			]
 		}
 	]
