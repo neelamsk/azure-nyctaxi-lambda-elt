@@ -586,7 +586,7 @@
 							],
 							"outputs": [
 								{
-									"referenceName": "ds_syn_stg_trip",
+									"referenceName": "ds_syn_stg_trip_adf",
 									"type": "DatasetReference"
 								}
 							]
