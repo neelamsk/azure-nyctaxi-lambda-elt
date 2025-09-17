@@ -1,0 +1,16 @@
+{
+	"name": "ds_syn_stg_trip_adf",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_syn_sql",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlDWTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "stg",
+			"table": "trip"
+		}
+	}
+}
