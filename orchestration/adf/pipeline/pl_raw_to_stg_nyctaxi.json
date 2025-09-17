@@ -59,7 +59,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"dataset": {
-						"referenceName": "ds_raw_folder",
+						"referenceName": "ds_raw_folder_adf",
 						"type": "DatasetReference",
 						"parameters": {
 							"p_dataset": {
