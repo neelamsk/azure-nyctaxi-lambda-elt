@@ -665,7 +665,14 @@
 			{
 				"name": "UpdateTheLogWithSuccess",
 				"type": "Script",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "ForEach1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -683,7 +690,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "UPDATE ops.run_log\nSET status='Success',\nfinished_at_utc = SYSUTCDATETIME(),\nferror_message='See Monitor for failing activity details'\nWHERE run_id='@{pipeline().RunId}' AND stage='raw_to_stg';",
+								"value": "UPDATE ops.run_log\nSET status='SUCCEEDED',\nrows_copied = (SELECT COUNT(*) FROM stg.trip WHERE ingest_date='@{pipeline().parameters.run_date}'),\nfinished_at_utc = SYSUTCDATETIME()\nWHERE run_id='@{pipeline().RunId}' AND stage='raw_to_stg';",
 								"type": "Expression"
 							}
 						}
@@ -694,7 +701,14 @@
 			{
 				"name": "UpdateTheLogWithFailure",
 				"type": "Script",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "ForEach1",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
