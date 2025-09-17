@@ -20,7 +20,10 @@
 		"type": "Parquet",
 		"typeProperties": {
 			"location": {
-				"type": "AzureBlobFSLocation"
+				"type": "AzureBlobFSLocation",
+				"fileName": "@dataset().p_file_name",
+				"folderPath": "@concat(dataset().p_dataset,'/ingest_date=',dataset().p_run_date)",
+				"fileSystem": "raw"
 			},
 			"compressionCodec": "snappy"
 		},
