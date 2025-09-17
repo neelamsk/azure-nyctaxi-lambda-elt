@@ -5,7 +5,14 @@
 			{
 				"name": "DeleteStagingPartition",
 				"type": "Script",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "LogTheRun",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -622,72 +629,6 @@
 								],
 								"scriptBlockExecutionTimeout": "02:00:00"
 							}
-						},
-						{
-							"name": "UpdateTheLogWithSuccess",
-							"type": "Script",
-							"dependsOn": [
-								{
-									"activity": "CopyToStaging_copy1",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"linkedServiceName": {
-								"referenceName": "ls_syn_sql",
-								"type": "LinkedServiceReference"
-							},
-							"typeProperties": {
-								"scripts": [
-									{
-										"type": "Query",
-										"text": "UPDATE ops.run_log\nSET status = 'SUCCEEDED',\n    rows_copied = @{activity('CopyToStaging').output.rowsCopied},\n    finished_at_utc = SYSUTCDATETIME()\nWHERE run_id = '@{pipeline().RunId}' AND stage = 'raw_to_stg';\n"
-									}
-								],
-								"scriptBlockExecutionTimeout": "02:00:00"
-							}
-						},
-						{
-							"name": "UpdateTheLogWithFailure",
-							"type": "Script",
-							"dependsOn": [
-								{
-									"activity": "CopyToStaging_copy1",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"linkedServiceName": {
-								"referenceName": "ls_syn_sql",
-								"type": "LinkedServiceReference"
-							},
-							"typeProperties": {
-								"scripts": [
-									{
-										"type": "Query",
-										"text": "UPDATE ops.run_log\nSET status = 'FAILED',\n    finished_at_utc = SYSUTCDATETIME(),\n    error_message = LEFT('@{activity('CopyToStaging').error.message}', 4000)\nWHERE run_id = '@{pipeline().RunId}' AND stage = 'raw_to_stg';\n"
-									}
-								],
-								"scriptBlockExecutionTimeout": "02:00:00"
-							}
 						}
 					]
 				}
@@ -712,7 +653,65 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "INSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES ('@{pipeline().RunId}', 'raw_to_stg',\n        '@{pipeline().parameters.dataset}', '@{pipeline().parameters.run_date}',\n        'STARTED', SYSUTCDATETIME());\n"
+							"text": {
+								"value": "INSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES ('@{pipeline().RunId}', 'raw_to_stg',\n        '@{pipeline().parameters.dataset}', '@{pipeline().parameters.run_date}',\n        'STARTED', SYSUTCDATETIME());\n",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Script1",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "UPDATE ops.run_log\nSET status='Success',\nfinished_at_utc = SYSUTCDATETIME(),\nferror_message='See Monitor for failing activity details'\nWHERE run_id='@{pipeline().RunId}' AND stage='raw_to_stg';",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "UpdateTheLogWithFailure",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "UPDATE ops.run_log\nSET status='FAILED',\n    finished_at_utc = SYSUTCDATETIME(),\n    error_message='See Monitor for failing activity details'\nWHERE run_id='@{pipeline().RunId}' AND stage='raw_to_stg';\n"
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
