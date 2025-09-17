@@ -3,17 +3,6 @@
 	"properties": {
 		"annotations": [],
 		"runtimeState": "Started",
-		"pipeline": {
-			"pipelineReference": {
-				"referenceName": "pl_raw_to_stg_nyctaxi",
-				"type": "PipelineReference"
-			},
-			"parameters": {
-				"dataset": "nyctaxi_yellow",
-				"run_date": "@formatDateTime(trigger().startTime,'yyyy-MM-dd')",
-				"run_id": "@pipeline().RunId"
-			}
-		},
 		"type": "TumblingWindowTrigger",
 		"typeProperties": {
 			"frequency": "Hour",
