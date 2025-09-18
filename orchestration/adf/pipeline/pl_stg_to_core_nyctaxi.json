@@ -1,0 +1,80 @@
+{
+	"name": "pl_stg_to_core_nyctaxi",
+	"properties": {
+		"activities": [
+			{
+				"name": "LogStart",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "DECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @ingest   DATE          = '@{pipeline().parameters.run_date}';\n\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', SYSUTCDATETIME());\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "BuildSlice_CTAS",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "LogStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "\n-- Build a cleaned \"slice\" for a specific ingest_date using CTAS.\n-- Reruns: drop the slice table and rebuild.\n\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\nIF OBJECT_ID('core.trip_clean_slice') IS NOT NULL\n  DROP TABLE core.trip_clean_slice;\n\nCREATE TABLE core.trip_clean_slice\nWITH (\n  DISTRIBUTION = HASH (trip_id),\n  CLUSTERED COLUMNSTORE INDEX\n)\nAS\nSELECT\n  UPPER(NULLIF(LTRIM(RTRIM(s.vendor_id)), ''))                    AS vendor_code,\n  TRY_CAST(s.trip_id AS BIGINT)                                   AS trip_id,\n\n  TRY_CONVERT(DATETIME2, s.pickup_datetime)                       AS pickup_ts_utc,\n  TRY_CONVERT(DATETIME2, s.dropoff_datetime)                      AS dropoff_ts_utc,\n\n  CASE \n    WHEN TRY_CAST(s.trip_distance AS FLOAT) IS NULL THEN NULL\n    ELSE ROUND(TRY_CAST(s.trip_distance AS FLOAT) * 1.609344, 3)\n  END                                                             AS trip_distance_km,\n\n  TRY_CAST(s.fare_amount AS DECIMAL(9,2))                         AS fare_amount,\n\n  COALESCE(rp.payment_type_std,\n           CASE\n             WHEN TRY_CAST(s.payment_type AS INT) = 1 THEN 'CARD'\n             WHEN TRY_CAST(s.payment_type AS INT) = 2 THEN 'CASH'\n             WHEN TRY_CAST(s.payment_type AS INT) = 3 THEN 'NO_CHARGE'\n             WHEN TRY_CAST(s.payment_type AS INT) = 4 THEN 'DISPUTE'\n           END)                                                   AS payment_type,\n\n  CASE \n    WHEN TRY_CONVERT(DATETIME2, s.pickup_datetime) IS NOT NULL\n     AND (DATEPART(HOUR, TRY_CONVERT(DATETIME2, s.pickup_datetime)) BETWEEN 22 AND 23\n          OR DATEPART(HOUR, TRY_CONVERT(DATETIME2, s.pickup_datetime)) BETWEEN 0 AND 5)\n    THEN 1 ELSE 0\n  END                                                             AS is_night_ride,\n\n  s.ingest_date,\n  s.source_file_name,\n  s.loaded_at\nFROM stg.trip AS s\nLEFT JOIN ref.payment_type_map rp\n  ON NULLIF(LTRIM(RTRIM(s.payment_type)), '') = rp.payment_type_src\nWHERE s.ingest_date = @ingest_date\n  AND TRY_CONVERT(DATETIME2, s.pickup_datetime) IS NOT NULL\n  AND TRY_CONVERT(DATETIME2, s.dropoff_datetime) IS NOT NULL\n  AND TRY_CONVERT(DATETIME2, s.pickup_datetime) <= TRY_CONVERT(DATETIME2, s.dropoff_datetime)\n  AND TRY_CAST(s.fare_amount AS DECIMAL(9,2)) >= 0\n  AND TRY_CAST(s.trip_distance AS FLOAT) >= 0;\n",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"dataset": {
+				"type": "string",
+				"defaultValue": "nyctaxi_yellow"
+			},
+			"run_date": {
+				"type": "string",
+				"defaultValue": "@{formatDateTime(utcNow(),'yyyy-MM-dd')}"
+			}
+		},
+		"annotations": []
+	}
+}
