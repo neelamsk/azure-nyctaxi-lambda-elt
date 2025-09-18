@@ -28,6 +28,12 @@
 		},
 		"ls_syn_sql_properties_typeProperties_userName": {
 			"value": "synadmin"
+		},
+		"trigger1_properties_pipeline_parameters_dataset": {
+			"value": "nyctaxi_yellow"
+		},
+		"trigger1_properties_pipeline_parameters_run_date": {
+			"value": "@formatDateTime(trigger().startTime,'yyyy-MM-dd')"
 		}
 	}
 }
