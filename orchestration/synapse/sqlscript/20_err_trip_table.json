@@ -1,0 +1,17 @@
+{
+	"name": "20_err_trip_table",
+	"properties": {
+		"content": {
+			"query": "-- Error quarantine table for rejected rows (optional but recommended).\nIF OBJECT_ID('err.trip') IS NULL\nBEGIN\n  CREATE TABLE err.trip\n  (\n    ingest_date        DATE          NOT NULL,\n    source_file_name   VARCHAR(256)  NULL,\n    loaded_at          DATETIME2     NULL,\n    reject_reason      VARCHAR(64)   NOT NULL,\n    raw_payload        NVARCHAR(MAX) NULL,   -- store JSON/CSV row if available\n    recorded_at_utc    DATETIME2     NOT NULL \n  )\n  WITH (DISTRIBUTION = ROUND_ROBIN, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
