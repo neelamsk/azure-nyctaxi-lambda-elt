@@ -1,0 +1,17 @@
+{
+	"name": "30_run_metrics_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('ops.run_metrics') IS NULL\nBEGIN\n  CREATE TABLE ops.run_metrics\n  (\n    layer           VARCHAR(16)  NOT NULL,   -- 'stg' | 'core' | 'mdl'\n    table_name      VARCHAR(128) NOT NULL,\n    ingest_date     DATE         NOT NULL,\n    rows_in         BIGINT       NULL,\n    rows_out        BIGINT       NULL,\n    rows_err        BIGINT       NULL,\n    run_ts_utc      DATETIME2    NOT NULL,\n    recorded_at_utc DATETIME2    NULL\n  )\n  WITH (DISTRIBUTION = ROUND_ROBIN, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

@@ -1,0 +1,17 @@
+{
+	"name": "10_trip_clean_table",
+	"properties": {
+		"content": {
+			"query": "-- Create the core.trip_clean table structure (once).\n-- Choose HASH if you have a good, stable high-cardinality key; else ROUND_ROBIN.\n\nIF OBJECT_ID('core.trip_clean') IS NULL\nBEGIN\n  CREATE TABLE core.trip_clean\n  (\n    vendor_code        VARCHAR(32)   NULL,\n    trip_id            BIGINT        NULL,     -- if not present in source, keep NULL or create later\n    pickup_ts_utc      DATETIME2     NULL,\n    dropoff_ts_utc     DATETIME2     NULL,\n    trip_distance_km   DECIMAL(9,3)  NULL,\n    fare_amount        DECIMAL(9,2)  NULL,\n    payment_type       VARCHAR(16)   NULL,\n    is_night_ride      BIT           NULL,\n\n    -- lineage\n    ingest_date        DATE          NOT NULL,\n    source_file_name   VARCHAR(256)  NULL,\n    loaded_at          DATETIME2     NULL\n  )\n  WITH (\n    DISTRIBUTION = HASH (trip_id),           -- switch to ROUND_ROBIN if trip_id isn’t great\n    CLUSTERED COLUMNSTORE INDEX\n  );\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

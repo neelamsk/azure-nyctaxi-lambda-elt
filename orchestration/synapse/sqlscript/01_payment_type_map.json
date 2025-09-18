@@ -1,0 +1,17 @@
+{
+	"name": "01_payment_type_map",
+	"properties": {
+		"content": {
+			"query": "-- Reference table for canonical payment types\nIF OBJECT_ID('ref.payment_type_map') IS NULL\nBEGIN\n  CREATE TABLE ref.payment_type_map\n  (\n    payment_type_src  VARCHAR(50)  NOT NULL,  -- raw code/text from source\n    payment_type_std  VARCHAR(50)  NOT NULL,  -- canonical value\n    is_active         BIT          NOT NULL,\n    valid_from_utc    DATETIME2    NULL,\n    valid_to_utc      DATETIME2    NULL\n  )\n  WITH (DISTRIBUTION = ROUND_ROBIN, HEAP);\nEND;\n\n\n-- Example seeds (edit to your dataset)\n;WITH seed AS (\n  SELECT '1'   AS payment_type_src, 'CARD'      AS payment_type_std\n  UNION ALL SELECT '2',  'CASH'\n  UNION ALL SELECT '3',  'NO_CHARGE'\n  UNION ALL SELECT '4',  'DISPUTE'\n  UNION ALL SELECT 'CRD','CARD'\n  UNION ALL SELECT 'CSH','CASH'\n)\nINSERT INTO ref.payment_type_map (\n  payment_type_src, payment_type_std, is_active, valid_from_utc, valid_to_utc\n)\nSELECT s.payment_type_src, s.payment_type_std, 1, SYSUTCDATETIME(), NULL\nFROM seed s\nLEFT JOIN ref.payment_type_map t\n  ON t.payment_type_src = s.payment_type_src AND t.is_active = 1\nWHERE t.payment_type_src IS NULL;\n\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

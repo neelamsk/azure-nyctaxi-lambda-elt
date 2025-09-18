@@ -1,0 +1,17 @@
+{
+	"name": "00_schemas",
+	"properties": {
+		"content": {
+			"query": "-- Create schemas if they don't exist\nIF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'ref')  EXEC('CREATE SCHEMA ref');\nIF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'stg')  EXEC('CREATE SCHEMA stg');\nIF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'core') EXEC('CREATE SCHEMA core');\nIF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'mdl')  EXEC('CREATE SCHEMA mdl');\nIF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'err')  EXEC('CREATE SCHEMA err');\nIF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'ops')  EXEC('CREATE SCHEMA ops');\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
