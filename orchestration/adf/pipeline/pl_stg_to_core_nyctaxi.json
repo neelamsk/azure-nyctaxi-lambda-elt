@@ -8,7 +8,7 @@
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
-					"retry": 2,
+					"retry": 0,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
 					"secureInput": false
@@ -22,7 +22,10 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "DECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @ingest   DATE          = '@{pipeline().parameters.run_date}';\n\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', SYSUTCDATETIME());\n"
+							"text": {
+								"value": "DECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @ingest   DATE          = '@{pipeline().parameters.run_date}';\n\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc)\nSELECT @run_id, @stage, @dataset, @ingest, 'STARTED', SYSUTCDATETIME();\n",
+								"type": "Expression"
+							}
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
