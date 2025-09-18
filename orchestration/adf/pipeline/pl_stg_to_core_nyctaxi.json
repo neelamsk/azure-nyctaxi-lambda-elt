@@ -56,7 +56,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "\n-- Build a cleaned \"slice\" for a specific ingest_date using CTAS.\n-- Reruns: drop the slice table and rebuild.\n\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\nIF OBJECT_ID('core.trip_clean_slice') IS NOT NULL\n  DROP TABLE core.trip_clean_slice;\n\nCREATE TABLE core.trip_clean_slice\nWITH (\n  DISTRIBUTION = HASH (trip_id),\n  CLUSTERED COLUMNSTORE INDEX\n)\nAS\nSELECT\n  UPPER(NULLIF(LTRIM(RTRIM(s.vendor_id)), ''))                    AS vendor_code,\n  TRY_CAST(s.trip_id AS BIGINT)                                   AS trip_id,\n\n  TRY_CONVERT(DATETIME2, s.pickup_datetime)                       AS pickup_ts_utc,\n  TRY_CONVERT(DATETIME2, s.dropoff_datetime)                      AS dropoff_ts_utc,\n\n  CASE \n    WHEN TRY_CAST(s.trip_distance AS FLOAT) IS NULL THEN NULL\n    ELSE ROUND(TRY_CAST(s.trip_distance AS FLOAT) * 1.609344, 3)\n  END                                                             AS trip_distance_km,\n\n  TRY_CAST(s.fare_amount AS DECIMAL(9,2))                         AS fare_amount,\n\n  COALESCE(rp.payment_type_std,\n           CASE\n             WHEN TRY_CAST(s.payment_type AS INT) = 1 THEN 'CARD'\n             WHEN TRY_CAST(s.payment_type AS INT) = 2 THEN 'CASH'\n             WHEN TRY_CAST(s.payment_type AS INT) = 3 THEN 'NO_CHARGE'\n             WHEN TRY_CAST(s.payment_type AS INT) = 4 THEN 'DISPUTE'\n           END)                                                   AS payment_type,\n\n  CASE \n    WHEN TRY_CONVERT(DATETIME2, s.pickup_datetime) IS NOT NULL\n     AND (DATEPART(HOUR, TRY_CONVERT(DATETIME2, s.pickup_datetime)) BETWEEN 22 AND 23\n          OR DATEPART(HOUR, TRY_CONVERT(DATETIME2, s.pickup_datetime)) BETWEEN 0 AND 5)\n    THEN 1 ELSE 0\n  END                                                             AS is_night_ride,\n\n  s.ingest_date,\n  s.source_file_name,\n  s.loaded_at\nFROM stg.trip AS s\nLEFT JOIN ref.payment_type_map rp\n  ON NULLIF(LTRIM(RTRIM(s.payment_type)), '') = rp.payment_type_src\nWHERE s.ingest_date = @ingest_date\n  AND TRY_CONVERT(DATETIME2, s.pickup_datetime) IS NOT NULL\n  AND TRY_CONVERT(DATETIME2, s.dropoff_datetime) IS NOT NULL\n  AND TRY_CONVERT(DATETIME2, s.pickup_datetime) <= TRY_CONVERT(DATETIME2, s.dropoff_datetime)\n  AND TRY_CAST(s.fare_amount AS DECIMAL(9,2)) >= 0\n  AND TRY_CAST(s.trip_distance AS FLOAT) >= 0;\n",
+								"value": "-- BuildSlice_CTAS\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\nIF OBJECT_ID('core.trip_clean_slice') IS NOT NULL\n  DROP TABLE core.trip_clean_slice;\n\nCREATE TABLE core.trip_clean_slice\nWITH (\n  DISTRIBUTION = ROUND_ROBIN,              -- safer since we don't have a reliable hash key\n  CLUSTERED COLUMNSTORE INDEX\n)\nAS\nSELECT\n  UPPER(NULLIF(LTRIM(RTRIM(CAST(s.VendorID AS VARCHAR(32)))), '')) AS vendor_code,\n  CAST(NULL AS BIGINT)                                             AS trip_id,          -- NYC Taxi has no trip_id\n  TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime)                   AS pickup_ts_utc,\n  TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime)                  AS dropoff_ts_utc,\n  CASE\n    WHEN TRY_CAST(s.trip_distance AS FLOAT) IS NULL THEN NULL\n    ELSE ROUND(TRY_CAST(s.trip_distance AS FLOAT) * 1.609344, 3)\n  END                                                              AS trip_distance_km,\n  TRY_CAST(s.fare_amount AS DECIMAL(9,2))                          AS fare_amount,\n  COALESCE(\n    rp.payment_type_std,\n    CASE TRY_CAST(s.payment_type AS INT)\n      WHEN 1 THEN 'CARD'\n      WHEN 2 THEN 'CASH'\n      WHEN 3 THEN 'NO_CHARGE'\n      WHEN 4 THEN 'DISPUTE'\n    END\n  )                                                                AS payment_type,\n  CASE\n    WHEN TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime) IS NOT NULL\n     AND (DATEPART(HOUR, TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime)) BETWEEN 22 AND 23\n          OR DATEPART(HOUR, TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime)) BETWEEN 0 AND 5)\n    THEN 1 ELSE 0\n  END                                                              AS is_night_ride,\n  s.ingest_date,\n  s.source_file_name,\n  s.loaded_at\nFROM stg.trip AS s\nLEFT JOIN ref.payment_type_map rp\n  ON NULLIF(LTRIM(RTRIM(CAST(s.payment_type AS VARCHAR(50)))), '') = rp.payment_type_src\nWHERE s.ingest_date = @ingest_date\n  AND TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime) IS NOT NULL\n  AND TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime) IS NOT NULL\n  AND TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime) <= TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime)\n  AND TRY_CAST(s.fare_amount AS DECIMAL(9,2)) >= 0\n  AND TRY_CAST(s.trip_distance AS FLOAT) >= 0;\n",
 								"type": "Expression"
 							}
 						}
@@ -92,7 +92,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "-- Capture rejects that fail basic domain checks into err.trip.\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\nINSERT INTO err.trip (ingest_date, source_file_name, loaded_at, reject_reason, raw_payload)\nSELECT\n  s.ingest_date,\n  s.source_file_name,\n  s.loaded_at,\n  CASE\n    WHEN TRY_CAST(s.fare_amount AS DECIMAL(9,2)) < 0 THEN 'NEGATIVE_FARE'\n    WHEN TRY_CAST(s.trip_distance AS FLOAT) < 0 THEN 'NEGATIVE_DISTANCE'\n    WHEN TRY_CONVERT(DATETIME2, s.pickup_datetime) > TRY_CONVERT(DATETIME2, s.dropoff_datetime) THEN 'PICKUP_AFTER_DROPOFF'\n    ELSE 'OTHER_BAD_VALUES'\n  END,\n  s._full_json   -- if you staged a raw JSON column; otherwise replace with a concatenation of columns\nFROM stg.trip s\nWHERE s.ingest_date = @ingest_date\n  AND (\n       TRY_CAST(s.fare_amount AS DECIMAL(9,2)) < 0 OR\n       TRY_CAST(s.trip_distance AS FLOAT) < 0 OR\n       TRY_CONVERT(DATETIME2, s.pickup_datetime) > TRY_CONVERT(DATETIME2, s.dropoff_datetime) OR\n       TRY_CONVERT(DATETIME2, s.pickup_datetime) IS NULL OR\n       TRY_CONVERT(DATETIME2, s.dropoff_datetime) IS NULL\n  );\n",
+								"value": "-- Quarantine_Rejected\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\nINSERT INTO err.trip (ingest_date, source_file_name, loaded_at, reject_reason, raw_payload)\nSELECT\n  s.ingest_date,\n  s.source_file_name,\n  s.loaded_at,\n  CASE\n    WHEN TRY_CAST(s.fare_amount AS DECIMAL(9,2)) < 0 THEN 'NEGATIVE_FARE'\n    WHEN TRY_CAST(s.trip_distance AS FLOAT) < 0 THEN 'NEGATIVE_DISTANCE'\n    WHEN TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime) > TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime) THEN 'PICKUP_AFTER_DROPOFF'\n    WHEN TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime) IS NULL OR TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime) IS NULL THEN 'NULL_TIME'\n    ELSE 'OTHER_BAD_VALUES'\n  END,\n  -- simple payload snippet (since _full_json isn't staged)\n  CONCAT(\n    'VendorID=', COALESCE(CAST(s.VendorID AS VARCHAR(16)),'NULL'), '; ',\n    'pickup=',  COALESCE(CONVERT(VARCHAR(19), TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime),120),'NULL'), '; ',\n    'dropoff=', COALESCE(CONVERT(VARCHAR(19), TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime),120),'NULL'), '; ',\n    'fare=',    COALESCE(CAST(s.fare_amount AS VARCHAR(32)),'NULL'), '; ',\n    'dist=',    COALESCE(CAST(s.trip_distance AS VARCHAR(32)),'NULL')\n  )\nFROM stg.trip s\nWHERE s.ingest_date = @ingest_date\n  AND (\n       TRY_CAST(s.fare_amount AS DECIMAL(9,2)) < 0 OR\n       TRY_CAST(s.trip_distance AS FLOAT) < 0 OR\n       TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime) IS NULL OR\n       TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime) IS NULL OR\n       TRY_CONVERT(DATETIME2, s.tpep_pickup_datetime) > TRY_CONVERT(DATETIME2, s.tpep_dropoff_datetime)\n  );\n",
 								"type": "Expression"
 							}
 						}
@@ -128,9 +128,111 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "-- Idempotent load for a given ingest_date: wipe that partition, then insert deduped winners from the slice.\n\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\n-- 1) Idempotent delete of existing partition\nDELETE FROM core.trip_clean WHERE ingest_date = @ingest_date;\n\n-- 2) Deterministic dedupe from slice\n;WITH ranked AS (\n  SELECT s.*,\n         ROW_NUMBER() OVER (\n           PARTITION BY s.trip_id   -- If trip_id is not reliable, replace with a compound natural key\n           ORDER BY s.loaded_at DESC, s.source_file_name DESC\n         ) AS rn\n  FROM core.trip_clean_slice s\n  WHERE s.ingest_date = @ingest_date\n)\nINSERT INTO core.trip_clean\n(\n  vendor_code, trip_id, pickup_ts_utc, dropoff_ts_utc,\n  trip_distance_km, fare_amount, payment_type, is_night_ride,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  vendor_code, trip_id, pickup_ts_utc, dropoff_ts_utc,\n  trip_distance_km, fare_amount, payment_type, is_night_ride,\n  ingest_date, source_file_name, loaded_at\nFROM ranked\nWHERE rn = 1;\n\n-- 3) Optional: drop the slice if you don’t want to keep it\n-- DROP TABLE core.trip_clean_slice;\n\n-- 4) Observability metrics\nINSERT INTO ops.run_metrics (layer, table_name, ingest_date, rows_in, rows_out, rows_err, run_ts_utc)\nSELECT\n  'core', 'trip_clean', @ingest_date,\n  (SELECT COUNT(*) FROM stg.trip WHERE ingest_date = @ingest_date),\n  (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @ingest_date),\n  (SELECT COUNT(*) FROM err.trip WHERE ingest_date = @ingest_date),\n  SYSUTCDATETIME();\n",
+								"value": "-- LoadCore_DedupeAndMetrics\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\n-- 1) Idempotent delete of existing partition\nDELETE FROM core.trip_clean WHERE ingest_date = @ingest_date;\n\n-- 2) Deterministic dedupe (compound natural key, since there is no trip_id)\n;WITH ranked AS (\n  SELECT s.*,\n         ROW_NUMBER() OVER (\n           PARTITION BY\n             s.vendor_code,\n             s.pickup_ts_utc,\n             s.dropoff_ts_utc,\n             s.fare_amount,\n             s.trip_distance_km,\n             s.payment_type\n           ORDER BY s.loaded_at DESC, s.source_file_name DESC\n         ) AS rn\n  FROM core.trip_clean_slice s\n  WHERE s.ingest_date = @ingest_date\n)\nINSERT INTO core.trip_clean\n(\n  vendor_code, trip_id, pickup_ts_utc, dropoff_ts_utc,\n  trip_distance_km, fare_amount, payment_type, is_night_ride,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  vendor_code, NULL, pickup_ts_utc, dropoff_ts_utc,\n  trip_distance_km, fare_amount, payment_type, is_night_ride,\n  ingest_date, source_file_name, loaded_at\nFROM ranked\nWHERE rn = 1;\n\n-- Optional: clean up the slice to avoid clutter (keep if no concurrency)\n-- DROP TABLE core.trip_clean_slice;\n\n-- 3) Observability metrics\nINSERT INTO ops.run_metrics (\n  layer, table_name, ingest_date, rows_in, rows_out, rows_err, run_ts_utc, recorded_at_utc\n)\nSELECT\n  'core', 'trip_clean', @ingest_date,\n  (SELECT COUNT(*) FROM stg.trip        WHERE ingest_date = @ingest_date),\n  (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @ingest_date),\n  (SELECT COUNT(*) FROM err.trip        WHERE ingest_date = @ingest_date),\n  SYSUTCDATETIME(), SYSUTCDATETIME();\n",
 								"type": "Expression"
 							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "CoreDQ_Gate",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "LoadCore_DedupeAndMetrics",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "-- CoreDQ_Gate (core-layer data quality for a single ingest_date)\n-- Assumes tables: stg.trip, core.trip_clean, err.trip (optional)\n-- Fails the activity on any hard violation via THROW.\n\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\n-- Row counts\nDECLARE @rows_stg   BIGINT = (SELECT COUNT(*) FROM stg.trip       WHERE ingest_date = @ingest_date);\nDECLARE @rows_core  BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @ingest_date);\nDECLARE @rows_err   BIGINT = (SELECT COUNT(*) FROM err.trip       WHERE ingest_date = @ingest_date);\n\n-- Core domain/consistency checks\nDECLARE @bad_time         BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND pickup_ts_utc > dropoff_ts_utc\n);\n\nDECLARE @neg_fare         BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND fare_amount < 0\n);\n\nDECLARE @neg_distance     BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND trip_distance_km < 0\n);\n\nDECLARE @null_pickup      BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND pickup_ts_utc IS NULL\n);\n\nDECLARE @null_dropoff     BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND dropoff_ts_utc IS NULL\n);\n\nDECLARE @dupe_trip_id     BIGINT = (\n  SELECT COUNT(*)\n  FROM (\n    SELECT trip_id\n    FROM core.trip_clean\n    WHERE ingest_date=@ingest_date AND trip_id IS NOT NULL\n    GROUP BY trip_id\n    HAVING COUNT(*) > 1\n  ) d\n);\n\n-- Optional sanity: core + err should not exceed staging (if you capture err rows)\nDECLARE @core_plus_err_gt_stg BIT =\n  CASE WHEN @rows_err IS NULL THEN 0\n       WHEN (@rows_core + @rows_err) > @rows_stg THEN 1 ELSE 0 END;\n\n-- Quick human-readable summary (shows in activity output logs)\nSELECT\n  @ingest_date  AS ingest_date,\n  @rows_stg     AS rows_stg,\n  @rows_core    AS rows_core,\n  @rows_err     AS rows_err,\n  @bad_time     AS bad_time_order_cnt,\n  @neg_fare     AS negative_fare_cnt,\n  @neg_distance AS negative_distance_cnt,\n  @null_pickup  AS null_pickup_cnt,\n  @null_dropoff AS null_dropoff_cnt,\n  @dupe_trip_id AS duplicate_trip_id_cnt;\n\n-- Hard fail conditions (stop the pipeline with a clear message)\nIF @rows_core = 0\n  THROW 52000, 'DQ FAIL: core.trip_clean has 0 rows for ingest_date.', 1;\n\nIF @bad_time > 0\n  THROW 52001, 'DQ FAIL: pickup_ts_utc > dropoff_ts_utc detected in core.', 1;\n\nIF @neg_fare > 0\n  THROW 52002, 'DQ FAIL: Negative fare_amount rows present in core.', 1;\n\nIF @neg_distance > 0\n  THROW 52003, 'DQ FAIL: Negative trip_distance_km rows present in core.', 1;\n\nIF @null_pickup > 0\n  THROW 52004, 'DQ FAIL: NULL pickup_ts_utc rows present in core.', 1;\n\nIF @null_dropoff > 0\n  THROW 52005, 'DQ FAIL: NULL dropoff_ts_utc rows present in core.', 1;\n\nIF @dupe_trip_id > 0\n  THROW 52006, 'DQ FAIL: Duplicate trip_id detected in core for this slice.', 1;\n\nIF @core_plus_err_gt_stg = 1\n  THROW 52007, 'DQ FAIL: (core + err) row count exceeds staging row count for this slice.', 1;\n\n-- If we reach here, all checks passed (no THROW)\n",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "LogSuccess",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "CoreDQ_Gate",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "-- LogSuccess (after CoreDQ_Gate succeeds)\nDECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @d        DATE          = '@{pipeline().parameters.run_date}';\n\nDECLARE @rows BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @d);\n\n-- Update the STARTED row to SUCCEEDED\nUPDATE ops.run_log\nSET status = 'SUCCEEDED',\n    rows_copied = @rows,\n    finished_at_utc = CAST(SYSUTCDATETIME() AS DATETIME2(3))\nWHERE run_id = @run_id\n  AND stage  = @stage;\n\n-- Safety: if no row was updated (e.g., LogStart didn’t run), insert a success row\nIF @@ROWCOUNT = 0\nBEGIN\n  INSERT INTO ops.run_log\n    (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\n  VALUES\n    (@run_id, @stage, @dataset, @d, 'SUCCEEDED',\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     @rows);\nEND\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "LogFailure",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "CoreDQ_Gate",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "-- LogFailure (after CoreDQ_Gate fails)\nDECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @d        DATE          = '@{pipeline().parameters.run_date}';\n\n-- Capture how many rows made it into core for this slice (may be 0)\nDECLARE @rows BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @d);\n\n-- Update the STARTED row to FAILED\nUPDATE ops.run_log\nSET status = 'FAILED',\n    rows_copied = @rows,\n    finished_at_utc = CAST(SYSUTCDATETIME() AS DATETIME2(3))\nWHERE run_id = @run_id\n  AND stage  = @stage;\n\n-- Safety: if no existing STARTED row, insert a FAILED record\nIF @@ROWCOUNT = 0\nBEGIN\n  INSERT INTO ops.run_log\n    (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\n  VALUES\n    (@run_id, @stage, @dataset, @d, 'FAILED',\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     @rows);\nEND\n"
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
