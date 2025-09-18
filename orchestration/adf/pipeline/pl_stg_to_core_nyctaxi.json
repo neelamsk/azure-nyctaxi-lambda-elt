@@ -202,7 +202,10 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "-- LogSuccess (after CoreDQ_Gate succeeds)\nDECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @d        DATE          = '@{pipeline().parameters.run_date}';\n\nDECLARE @rows BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @d);\n\n-- Update the STARTED row to SUCCEEDED\nUPDATE ops.run_log\nSET status = 'SUCCEEDED',\n    rows_copied = @rows,\n    finished_at_utc = CAST(SYSUTCDATETIME() AS DATETIME2(3))\nWHERE run_id = @run_id\n  AND stage  = @stage;\n\n-- Safety: if no row was updated (e.g., LogStart didn’t run), insert a success row\nIF @@ROWCOUNT = 0\nBEGIN\n  INSERT INTO ops.run_log\n    (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\n  VALUES\n    (@run_id, @stage, @dataset, @d, 'SUCCEEDED',\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     @rows);\nEND\n"
+							"text": {
+								"value": "-- LogSuccess (after CoreDQ_Gate succeeds)\nDECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @d        DATE          = '@{pipeline().parameters.run_date}';\n\nDECLARE @rows BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @d);\n\n-- Try to update existing STARTED row\nUPDATE ops.run_log\nSET status = 'SUCCEEDED',\n    rows_copied = @rows,\n    finished_at_utc = CAST(SYSUTCDATETIME() AS DATETIME2(3))\nWHERE run_id = @run_id\n  AND stage  = @stage;\n\n-- Fallback if no row exists (avoid @@ROWCOUNT)\nIF NOT EXISTS (SELECT 1 FROM ops.run_log WHERE run_id = @run_id AND stage = @stage)\nBEGIN\n  INSERT INTO ops.run_log\n    (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\n  SELECT\n    @run_id, @stage, @dataset, @d, 'SUCCEEDED',\n    CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n    CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n    @rows;\nEND\n",
+								"type": "Expression"
+							}
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
@@ -235,7 +238,10 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "-- LogFailure (after CoreDQ_Gate fails)\nDECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @d        DATE          = '@{pipeline().parameters.run_date}';\n\n-- Capture how many rows made it into core for this slice (may be 0)\nDECLARE @rows BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @d);\n\n-- Update the STARTED row to FAILED\nUPDATE ops.run_log\nSET status = 'FAILED',\n    rows_copied = @rows,\n    finished_at_utc = CAST(SYSUTCDATETIME() AS DATETIME2(3))\nWHERE run_id = @run_id\n  AND stage  = @stage;\n\n-- Safety: if no existing STARTED row, insert a FAILED record\nIF @@ROWCOUNT = 0\nBEGIN\n  INSERT INTO ops.run_log\n    (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\n  VALUES\n    (@run_id, @stage, @dataset, @d, 'FAILED',\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n     @rows);\nEND\n"
+							"text": {
+								"value": "-- LogFailure (after CoreDQ_Gate fails)\nDECLARE @run_id   NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage    NVARCHAR(32)  = 'stg_to_core';\nDECLARE @dataset  NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @d        DATE          = '@{pipeline().parameters.run_date}';\n\nDECLARE @rows BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @d);\n\n-- Try to update existing STARTED row\nUPDATE ops.run_log\nSET status = 'FAILED',\n    rows_copied = @rows,\n    finished_at_utc = CAST(SYSUTCDATETIME() AS DATETIME2(3))\nWHERE run_id = @run_id\n  AND stage  = @stage;\n\n-- Fallback if no row exists (avoid @@ROWCOUNT)\nIF NOT EXISTS (SELECT 1 FROM ops.run_log WHERE run_id = @run_id AND stage = @stage)\nBEGIN\n  INSERT INTO ops.run_log\n    (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\n  SELECT\n    @run_id, @stage, @dataset, @d, 'FAILED',\n    CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n    CAST(SYSUTCDATETIME() AS DATETIME2(3)),\n    @rows;\nEND\n",
+								"type": "Expression"
+							}
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
