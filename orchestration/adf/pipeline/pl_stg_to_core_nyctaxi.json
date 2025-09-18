@@ -63,6 +63,42 @@
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
 				}
+			},
+			{
+				"name": "Quarantine_Rejected",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "BuildSlice_CTAS",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "-- Capture rejects that fail basic domain checks into err.trip.\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\nINSERT INTO err.trip (ingest_date, source_file_name, loaded_at, reject_reason, raw_payload)\nSELECT\n  s.ingest_date,\n  s.source_file_name,\n  s.loaded_at,\n  CASE\n    WHEN TRY_CAST(s.fare_amount AS DECIMAL(9,2)) < 0 THEN 'NEGATIVE_FARE'\n    WHEN TRY_CAST(s.trip_distance AS FLOAT) < 0 THEN 'NEGATIVE_DISTANCE'\n    WHEN TRY_CONVERT(DATETIME2, s.pickup_datetime) > TRY_CONVERT(DATETIME2, s.dropoff_datetime) THEN 'PICKUP_AFTER_DROPOFF'\n    ELSE 'OTHER_BAD_VALUES'\n  END,\n  s._full_json   -- if you staged a raw JSON column; otherwise replace with a concatenation of columns\nFROM stg.trip s\nWHERE s.ingest_date = @ingest_date\n  AND (\n       TRY_CAST(s.fare_amount AS DECIMAL(9,2)) < 0 OR\n       TRY_CAST(s.trip_distance AS FLOAT) < 0 OR\n       TRY_CONVERT(DATETIME2, s.pickup_datetime) > TRY_CONVERT(DATETIME2, s.dropoff_datetime) OR\n       TRY_CONVERT(DATETIME2, s.pickup_datetime) IS NULL OR\n       TRY_CONVERT(DATETIME2, s.dropoff_datetime) IS NULL\n  );\n",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
 			}
 		],
 		"parameters": {
