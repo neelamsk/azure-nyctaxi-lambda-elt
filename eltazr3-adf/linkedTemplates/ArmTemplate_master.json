@@ -39,6 +39,14 @@
 			"type": "string",
 			"defaultValue": "synadmin"
 		},
+		"t_daily_nyctaxi_properties_pipeline_parameters_dataset": {
+			"type": "string",
+			"defaultValue": "nyctaxi_yellow"
+		},
+		"t_daily_nyctaxi_properties_pipeline_parameters_run_date": {
+			"type": "string",
+			"defaultValue": "2025-07-31"
+		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI to storage account containing linked ARM templates"
@@ -89,6 +97,12 @@
 					},
 					"ls_syn_sql_properties_typeProperties_userName": {
 						"value": "[parameters('ls_syn_sql_properties_typeProperties_userName')]"
+					},
+					"t_daily_nyctaxi_properties_pipeline_parameters_dataset": {
+						"value": "[parameters('t_daily_nyctaxi_properties_pipeline_parameters_dataset')]"
+					},
+					"t_daily_nyctaxi_properties_pipeline_parameters_run_date": {
+						"value": "[parameters('t_daily_nyctaxi_properties_pipeline_parameters_run_date')]"
 					}
 				}
 			},

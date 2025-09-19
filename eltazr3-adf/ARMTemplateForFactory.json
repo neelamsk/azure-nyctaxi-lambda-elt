@@ -38,6 +38,14 @@
 		"ls_syn_sql_properties_typeProperties_userName": {
 			"type": "string",
 			"defaultValue": "synadmin"
+		},
+		"t_daily_nyctaxi_properties_pipeline_parameters_dataset": {
+			"type": "string",
+			"defaultValue": "nyctaxi_yellow"
+		},
+		"t_daily_nyctaxi_properties_pipeline_parameters_run_date": {
+			"type": "string",
+			"defaultValue": "2025-07-31"
 		}
 	},
 	"variables": {
@@ -1421,27 +1429,39 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/trigger1')]",
+			"name": "[concat(parameters('factoryName'), '/t_daily_nyctaxi')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"annotations": [],
-				"runtimeState": "Stopped",
+				"runtimeState": "Started",
+				"pipeline": {
+					"pipelineReference": {
+						"referenceName": "pl_daily_nyctaxi",
+						"type": "PipelineReference"
+					},
+					"parameters": {
+						"dataset": "[parameters('t_daily_nyctaxi_properties_pipeline_parameters_dataset')]",
+						"run_date": "[parameters('t_daily_nyctaxi_properties_pipeline_parameters_run_date')]"
+					}
+				},
 				"type": "TumblingWindowTrigger",
 				"typeProperties": {
 					"frequency": "Hour",
 					"interval": 24,
-					"startTime": "2025-09-17T14:13:00Z",
-					"endTime": "2025-09-20T14:13:00Z",
+					"startTime": "2025-09-19T17:54:00Z",
+					"endTime": "2025-09-20T17:54:00Z",
 					"delay": "00:00:00",
-					"maxConcurrency": 1,
+					"maxConcurrency": 50,
 					"retryPolicy": {
 						"intervalInSeconds": 30
 					},
 					"dependsOn": []
 				}
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_daily_nyctaxi')]"
+			]
 		}
 	]
 }
