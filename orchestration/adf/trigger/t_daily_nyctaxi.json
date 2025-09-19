@@ -3,6 +3,16 @@
 	"properties": {
 		"annotations": [],
 		"runtimeState": "Started",
+		"pipeline": {
+			"pipelineReference": {
+				"referenceName": "pl_daily_nyctaxi",
+				"type": "PipelineReference"
+			},
+			"parameters": {
+				"dataset": "nyctaxi_yellow",
+				"run_date": "2025-07-31"
+			}
+		},
 		"type": "TumblingWindowTrigger",
 		"typeProperties": {
 			"frequency": "Hour",
