@@ -17,8 +17,8 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"dataset": "pipeline().parameters.dataset",
-						"run_date": "pipeline().parameters.run_date",
+						"dataset": "@pipeline().parameters.dataset",
+						"run_date": "@pipeline().parameters.run_date",
 						"run_id": "@pipeline().RunId"
 					}
 				}
