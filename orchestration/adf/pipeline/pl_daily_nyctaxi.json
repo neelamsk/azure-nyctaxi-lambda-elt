@@ -1,6 +1,55 @@
 {
 	"name": "pl_daily_nyctaxi",
 	"properties": {
+		"activities": [
+			{
+				"name": "Run_RawToStg",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_raw_to_stg_nyctaxi",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataset": "pipeline().parameters.dataset",
+						"run_date": "pipeline().parameters.run_date"
+					}
+				}
+			},
+			{
+				"name": "Run_StgToCore",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Run_RawToStg",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_stg_to_core_nyctaxi",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataset": "@pipeline().parameters.dataset",
+						"run_date": "@pipeline().parameters.run_date"
+					}
+				}
+			}
+		],
 		"parameters": {
 			"dataset": {
 				"type": "string",
