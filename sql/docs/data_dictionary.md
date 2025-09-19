@@ -63,6 +63,34 @@
 - **Filters (hard):** drop rows where pickup>dropoff, negative fare/distance, or null pickup/dropoff.
 - **Observability:** Rows in/out/err recorded in `ops.run_metrics` per `ingest_date`.
 
+
+### Columns intentionally excluded from `core.trip_clean` (present in `stg.trip`)
+
+We keep **core** narrow and business-ready. The following **staging** columns are **not** carried forward; reasons and future plan are noted so consumers aren’t surprised.
+
+**Identifiers / flags**
+- `VendorID` → replaced by `vendor_code` (uppercased/trimmed).
+- `payment_type` (raw) → replaced by canonical `payment_type` via `ref.payment_type_map`.
+- `store_and_fwd_flag` — operational transport flag; excluded for now.
+
+**Timestamps / distance (raw forms)**
+- `tpep_pickup_datetime`, `tpep_dropoff_datetime` → replaced by normalized `pickup_ts_utc` / `dropoff_ts_utc`.
+- `trip_distance` (miles) → replaced by `trip_distance_km` (km, 3 dp).
+
+**Location / codes**
+- `PULocationID`, `DOLocationID` — excluded; plan to surface via a **Location dimension** in the Modeling layer.
+- `RatecodeID` — excluded; can be standardized later via a small **reference table** and introduced in Modeling.
+
+**Passenger / amounts breakdown**
+- `passenger_count` — excluded; add later if required by reporting.
+- Monetary components not needed in current KPIs:
+  - `extra`, `mta_tax`, `tip_amount`, `tolls_amount`,
+    `improvement_surcharge`, `total_amount`,
+    `congestion_surcharge`, `airport_fee`
+  - Rationale: core focuses on base fare & trip features. If finance KPIs demand these, we’ll either (a) add selected columns to core, or (b) model them in a finance-oriented fact at the Modeling stage.
+
+> If a downstream use-case needs any of the excluded fields, open an issue with the column(s), purpose, and report. We’ll evaluate adding to **core** or exposing via **modeling** (preferred if it involves dimensions/measures).
+
 ---
 
 ## Schema: `err`
