@@ -1,0 +1,16 @@
+{
+	"name": "pl_daily_nyctaxi",
+	"properties": {
+		"parameters": {
+			"dataset": {
+				"type": "string",
+				"defaultValue": "nyctaxi_yellow"
+			},
+			"run_date": {
+				"type": "string",
+				"defaultValue": "@{formatDateTime(utcNow(),'yyyy-MM-dd')}"
+			}
+		},
+		"annotations": []
+	}
+}
