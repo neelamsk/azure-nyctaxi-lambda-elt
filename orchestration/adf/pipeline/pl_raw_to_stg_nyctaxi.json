@@ -723,7 +723,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "DECLARE @run_id     NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage      NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @dataset    NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @ingest     DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @started    DATETIME2(3)  = SYSUTCDATETIME();\n\nINSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', @started);\n",
+								"value": "DECLARE @run_id     NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage      NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @dataset    NVARCHAR(128) = '@{pipeline().parameters.dataset}';\n--DECLARE @ingest     DATE          = '@{pipeline().parameters.run_date}';\n\nDECLARE @ingest_date_str NVARCHAR(32) = '@{pipeline().parameters.run_date}';\nDECLARE @ingest DATE = TRY_CONVERT(DATE, @ingest_date_str, 23);\nIF @ingest IS NULL\n  THROW 53001, 'Bad run_date format. Expected yyyy-MM-dd.', 1;\n\nDECLARE @started    DATETIME2(3)  = SYSUTCDATETIME();\n\nINSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', @started);\n",
 								"type": "Expression"
 							}
 						}
