@@ -38,14 +38,6 @@
 		"ls_syn_sql_properties_typeProperties_userName": {
 			"type": "string",
 			"defaultValue": "synadmin"
-		},
-		"trigger1_properties_pipeline_parameters_dataset": {
-			"type": "string",
-			"defaultValue": "nyctaxi_yellow"
-		},
-		"trigger1_properties_pipeline_parameters_run_date": {
-			"type": "string",
-			"defaultValue": "@formatDateTime(trigger().startTime,'yyyy-MM-dd')"
 		}
 	},
 	"variables": {
@@ -126,6 +118,29 @@
 						"type": "SecureString",
 						"value": "[parameters('ls_syn_sql_password')]"
 					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/trigger1')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"type": "TumblingWindowTrigger",
+				"typeProperties": {
+					"frequency": "Hour",
+					"interval": 24,
+					"startTime": "2025-09-17T14:13:00Z",
+					"endTime": "2025-09-20T14:13:00Z",
+					"delay": "00:00:00",
+					"maxConcurrency": 1,
+					"retryPolicy": {
+						"intervalInSeconds": 30
+					},
+					"dependsOn": []
 				}
 			},
 			"dependsOn": []
@@ -1227,7 +1242,7 @@
 								{
 									"type": "Query",
 									"text": {
-										"value": "DECLARE @run_id     NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage      NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @dataset    NVARCHAR(128) = '@{pipeline().parameters.dataset}';\nDECLARE @ingest     DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @started    DATETIME2(3)  = SYSUTCDATETIME();\n\nINSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', @started);\n",
+										"value": "DECLARE @run_id     NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage      NVARCHAR(32)  = 'raw_to_stg';\nDECLARE @dataset    NVARCHAR(128) = '@{pipeline().parameters.dataset}';\n--DECLARE @ingest     DATE          = '@{pipeline().parameters.run_date}';\n\nDECLARE @ingest_date_str NVARCHAR(32) = '@{pipeline().parameters.run_date}';\nDECLARE @ingest DATE = TRY_CONVERT(DATE, @ingest_date_str, 23);\nIF @ingest IS NULL\n  THROW 53001, 'Bad run_date format. Expected yyyy-MM-dd.', 1;\n\nDECLARE @started    DATETIME2(3)  = SYSUTCDATETIME();\n\nINSERT INTO ops.run_log(run_id, stage, dataset, ingest_date, status, started_at_utc)\nVALUES (@run_id, @stage, @dataset, @ingest, 'STARTED', @started);\n",
 										"type": "Expression"
 									}
 								}
@@ -1339,38 +1354,93 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/trigger1')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
+			"name": "[concat(parameters('factoryName'), '/pl_daily_nyctaxi')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipeline": {
-					"pipelineReference": {
-						"referenceName": "pl_raw_to_stg_nyctaxi",
-						"type": "PipelineReference"
+				"activities": [
+					{
+						"name": "Run_RawToStg",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_raw_to_stg_nyctaxi",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"dataset": {
+									"value": "@pipeline().parameters.dataset",
+									"type": "Expression"
+								},
+								"run_date": {
+									"value": "@pipeline().parameters.run_date",
+									"type": "Expression"
+								},
+								"run_id": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							}
+						}
 					},
-					"parameters": {
-						"dataset": "[parameters('trigger1_properties_pipeline_parameters_dataset')]",
-						"run_date": "[parameters('trigger1_properties_pipeline_parameters_run_date')]"
+					{
+						"name": "Run_StgToCore",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Run_RawToStg",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_stg_to_core_nyctaxi",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"dataset": {
+									"value": "@pipeline().parameters.dataset",
+									"type": "Expression"
+								},
+								"run_date": {
+									"value": "@pipeline().parameters.run_date",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"dataset": {
+						"type": "string",
+						"defaultValue": "nyctaxi_yellow"
+					},
+					"run_date": {
+						"type": "string",
+						"defaultValue": "@{formatDateTime(utcNow(),'yyyy-MM-dd')}"
 					}
 				},
-				"type": "TumblingWindowTrigger",
-				"typeProperties": {
-					"frequency": "Hour",
-					"interval": 24,
-					"startTime": "2025-09-17T14:13:00Z",
-					"endTime": "2025-09-20T14:13:00Z",
-					"delay": "00:00:00",
-					"maxConcurrency": 1,
-					"retryPolicy": {
-						"intervalInSeconds": 30
-					},
-					"dependsOn": []
-				}
+				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/pl_raw_to_stg_nyctaxi')]"
+				"[concat(variables('factoryId'), '/pipelines/pl_raw_to_stg_nyctaxi')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_stg_to_core_nyctaxi')]"
 			]
 		}
 	]
