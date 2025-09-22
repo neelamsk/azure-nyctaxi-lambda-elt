@@ -53,6 +53,408 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/pl_core_to_mdl_nyctaxi')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LogStart",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='core_to_mdl';\nDECLARE @ds     NVARCHAR(128)='@{pipeline().parameters.dataset}';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\n\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc)\nSELECT @run_id, @stage, @ds, @d, 'STARTED', SYSUTCDATETIME();\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "DimVendor_Upsert",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(vendor_code))) AS vendor_code_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND vendor_code IS NOT NULL AND LTRIM(RTRIM(vendor_code)) <> ''\n)\nINSERT INTO mdl.dim_vendor (vendor_code_nk, active_flag, valid_from_utc)\nSELECT s.vendor_code_nk, 1, SYSUTCDATETIME()\nFROM src s\nLEFT JOIN mdl.dim_vendor t\n  ON t.vendor_code_nk = s.vendor_code_nk\nWHERE t.vendor_code_nk IS NULL;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "DimPayment_Upsert",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "DimVendor_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(payment_type))) AS payment_type_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND payment_type IS NOT NULL AND LTRIM(RTRIM(payment_type)) <> ''\n)\nINSERT INTO mdl.dim_payment_type (payment_type_nk)\nSELECT s.payment_type_nk\nFROM src s\nLEFT JOIN mdl.dim_payment_type t\n  ON t.payment_type_nk = s.payment_type_nk\nWHERE t.payment_type_nk IS NULL;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "DimRate_Upsert",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "DimPayment_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT CAST(RatecodeID AS VARCHAR(16)) AS rate_code_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND RatecodeID IS NOT NULL\n)\nINSERT INTO mdl.dim_rate_code (rate_code_nk)\nSELECT s.rate_code_nk\nFROM src s\nLEFT JOIN mdl.dim_rate_code t\n  ON t.rate_code_nk = s.rate_code_nk\nWHERE t.rate_code_nk IS NULL;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "DimFlag_Upsert",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "DimRate_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(store_and_fwd_flag))) AS flag_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND store_and_fwd_flag IS NOT NULL\n    AND LTRIM(RTRIM(store_and_fwd_flag)) <> ''\n)\nINSERT INTO mdl.dim_flag (flag_nk, meaning)\nSELECT s.flag_nk, NULL\nFROM src s\nLEFT JOIN mdl.dim_flag t\n  ON t.flag_nk = s.flag_nk\nWHERE t.flag_nk IS NULL;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "DimLocation_Upsert",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "DimFlag_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT CAST(PULocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND PULocationID IS NOT NULL\n  UNION\n  SELECT DISTINCT CAST(DOLocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND DOLocationID IS NOT NULL\n)\nINSERT INTO mdl.dim_location (location_id_nk)\nSELECT s.location_id_nk\nFROM src s\nLEFT JOIN mdl.dim_location t\n  ON t.location_id_nk = s.location_id_nk\nWHERE t.location_id_nk IS NULL;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "FactTrip_Load",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "DimVendor_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "DimPayment_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "DimRate_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "DimFlag_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "DimLocation_Upsert",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n-- 1) Idempotent delete\nDELETE FROM mdl.fact_trip WHERE ingest_date = @d;\n\n-- 2) Prepare the staging and core slices + correlation\nWITH c AS (\n  SELECT\n    vendor_code,\n    pickup_ts_utc,\n    dropoff_ts_utc,\n    trip_distance_km,\n    fare_amount,\n    payment_type,\n    ingest_date,\n    source_file_name,\n    loaded_at\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n),\ns AS (\n  SELECT\n    -- Recompute comparable types from stg\n    UPPER(LTRIM(RTRIM(CONVERT(VARCHAR(32), VendorID))))                 AS vendor_code_nk,\n    TRY_CONVERT(DATETIME2, tpep_pickup_datetime)                         AS pickup_ts_utc,\n    TRY_CONVERT(DATETIME2, tpep_dropoff_datetime)                        AS dropoff_ts_utc,\n    ROUND(TRY_CAST(trip_distance AS FLOAT) * 1.609344, 3)                AS trip_distance_km_stg,\n    TRY_CAST(fare_amount AS DECIMAL(9,2))                                AS fare_amount_clean,\n    CAST(RatecodeID AS VARCHAR(16))                                      AS rate_code_nk,\n    UPPER(LTRIM(RTRIM(store_and_fwd_flag)))                              AS flag_nk,\n    CAST(PULocationID AS SMALLINT)                                       AS pu_location_nk,\n    CAST(DOLocationID AS SMALLINT)                                       AS do_location_nk,\n    TRY_CAST(tip_amount AS DECIMAL(10,2))                                AS tip_amount,\n    TRY_CAST(tolls_amount AS DECIMAL(10,2))                              AS tolls_amount,\n    TRY_CAST(total_amount AS DECIMAL(10,2))                              AS total_amount,\n    ingest_date,\n    source_file_name,\n    loaded_at\n  FROM stg.trip\n  WHERE ingest_date = @d\n),\nj AS (\n  -- Correlate 1 core row to its best stg row using lineage + cleaned keys\n  SELECT\n    c.*,\n    s.rate_code_nk, s.flag_nk, s.pu_location_nk, s.do_location_nk,\n    s.tip_amount, s.tolls_amount, s.total_amount,\n    ROW_NUMBER() OVER (\n      PARTITION BY\n        c.vendor_code, c.pickup_ts_utc, c.dropoff_ts_utc,\n        c.fare_amount, c.trip_distance_km\n      ORDER BY s.loaded_at DESC, s.source_file_name DESC\n    ) AS rn\n  FROM c\n  LEFT JOIN s\n    ON c.ingest_date = s.ingest_date\n   AND c.source_file_name = s.source_file_name\n   AND c.pickup_ts_utc   = s.pickup_ts_utc\n   AND c.dropoff_ts_utc  = s.dropoff_ts_utc\n   AND c.fare_amount     = s.fare_amount_clean\n   AND c.trip_distance_km = s.trip_distance_km_stg\n   AND UPPER(LTRIM(RTRIM(c.vendor_code))) = s.vendor_code_nk\n),\npicked AS (\n  SELECT *\n  FROM j\n  WHERE rn = 1\n),\nkeyed AS (\n  -- Map NKs to SKs and compute date/time keys\n  SELECT\n    -- Deterministic trip_id (SHA-256 hex) built from the same dedupe columns used in core\n    CONVERT(CHAR(64),\n      HASHBYTES('SHA2_256', CONCAT(\n        COALESCE(UPPER(LTRIM(RTRIM(vendor_code))),'') , '|',\n        CONVERT(VARCHAR(23), pickup_ts_utc, 126)      , '|',\n        CONVERT(VARCHAR(23), dropoff_ts_utc, 126)     , '|',\n        CONVERT(VARCHAR(50), CAST(fare_amount AS DECIMAL(18,2))) , '|',\n        CONVERT(VARCHAR(50), CAST(trip_distance_km AS DECIMAL(18,3))) , '|',\n        COALESCE(UPPER(LTRIM(RTRIM(payment_type))),'')\n      ))\n    , 2) AS trip_id,\n\n    (YEAR(pickup_ts_utc)*10000 + MONTH(pickup_ts_utc)*100 + DAY(pickup_ts_utc)) AS pickup_date_key,\n    (DATEPART(HOUR, pickup_ts_utc) * 3600 +\n     DATEPART(MINUTE, pickup_ts_utc) * 60 +\n     DATEPART(SECOND, pickup_ts_utc)) AS pickup_time_key,\n\n    -- Lookups (COALESCE to -1 unknown if not found)\n    COALESCE(v.vendor_key, -1)         AS vendor_key,\n    COALESCE(p.payment_type_key, -1)   AS payment_type_key,\n    COALESCE(r.rate_code_key, -1)      AS rate_code_key,\n    COALESCE(f.flag_key, -1)           AS flag_key,\n    COALESCE(pu.location_key, -1)      AS pu_location_key,\n    COALESCE(do_.location_key, -1)     AS do_location_key,\n\n    trip_distance_km,\n    fare_amount,\n    tip_amount,\n    tolls_amount,\n    total_amount,\n    ingest_date,\n    source_file_name,\n    loaded_at\n  FROM picked x\n  LEFT JOIN mdl.dim_vendor        v  ON v.vendor_code_nk   = UPPER(LTRIM(RTRIM(x.vendor_code)))\n  LEFT JOIN mdl.dim_payment_type  p  ON p.payment_type_nk  = UPPER(LTRIM(RTRIM(x.payment_type)))\n  LEFT JOIN mdl.dim_rate_code     r  ON r.rate_code_nk     = x.rate_code_nk\n  LEFT JOIN mdl.dim_flag          f  ON f.flag_nk          = x.flag_nk\n  LEFT JOIN mdl.dim_location      pu ON pu.location_id_nk  = x.pu_location_nk\n  LEFT JOIN mdl.dim_location      do_ ON do_.location_id_nk = x.do_location_nk\n)\nINSERT INTO mdl.fact_trip\n(\n  trip_id,\n  pickup_date_key, pickup_time_key,\n  pu_location_key, do_location_key,\n  vendor_key, payment_type_key, rate_code_key, flag_key,\n  trip_distance_km, fare_amount, tip_amount, tolls_amount, total_amount,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  trip_id,\n  pickup_date_key, pickup_time_key,\n  pu_location_key, do_location_key,\n  vendor_key, payment_type_key, rate_code_key, flag_key,\n  trip_distance_km, fare_amount, tip_amount, tolls_amount, total_amount,\n  ingest_date, source_file_name, loaded_at\nFROM keyed;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "ModelDQ_Gate",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "FactTrip_Load",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n-- 1) Idempotent delete\nDELETE FROM mdl.fact_trip WHERE ingest_date = @d;\n\n-- 2) Prepare slices\nWITH c AS (\n  SELECT\n    -- A unique, deterministic id for each core row in this slice\n    ROW_NUMBER() OVER (\n      ORDER BY\n        source_file_name, loaded_at,\n        vendor_code, pickup_ts_utc, dropoff_ts_utc,\n        fare_amount, trip_distance_km, payment_type\n    ) AS core_row_id,\n    vendor_code,\n    pickup_ts_utc,\n    dropoff_ts_utc,\n    trip_distance_km,\n    fare_amount,\n    payment_type,\n    ingest_date,\n    source_file_name,\n    loaded_at\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n),\ns AS (\n  SELECT\n    UPPER(LTRIM(RTRIM(CONVERT(VARCHAR(32), VendorID))))        AS vendor_code_nk,\n    TRY_CONVERT(DATETIME2, tpep_pickup_datetime)                AS pickup_ts_utc,\n    TRY_CONVERT(DATETIME2, tpep_dropoff_datetime)               AS dropoff_ts_utc,\n    ROUND(TRY_CAST(trip_distance AS FLOAT) * 1.609344, 3)       AS trip_distance_km_stg,\n    TRY_CAST(fare_amount AS DECIMAL(9,2))                       AS fare_amount_clean,\n    CAST(RatecodeID AS VARCHAR(16))                             AS rate_code_nk,\n    UPPER(LTRIM(RTRIM(store_and_fwd_flag)))                     AS flag_nk,\n    CAST(PULocationID AS SMALLINT)                              AS pu_location_nk,\n    CAST(DOLocationID AS SMALLINT)                              AS do_location_nk,\n    TRY_CAST(tip_amount AS DECIMAL(10,2))                       AS tip_amount,\n    TRY_CAST(tolls_amount AS DECIMAL(10,2))                     AS tolls_amount,\n    TRY_CAST(total_amount AS DECIMAL(10,2))                     AS total_amount,\n    ingest_date,\n    source_file_name,\n    loaded_at\n  FROM stg.trip\n  WHERE ingest_date = @d\n),\nj AS (\n  -- LEFT JOIN so every core row survives even if no stg row matches\n  SELECT\n    c.*,\n    s.rate_code_nk, s.flag_nk, s.pu_location_nk, s.do_location_nk,\n    s.tip_amount, s.tolls_amount, s.total_amount,\n    ROW_NUMBER() OVER (\n      PARTITION BY c.core_row_id\n      ORDER BY s.loaded_at DESC, s.source_file_name DESC\n    ) AS rn\n  FROM c\n  LEFT JOIN s\n    ON c.ingest_date      = s.ingest_date\n   AND c.source_file_name = s.source_file_name\n   AND c.pickup_ts_utc    = s.pickup_ts_utc\n   AND c.dropoff_ts_utc   = s.dropoff_ts_utc\n),\npicked AS (\n  SELECT * FROM j WHERE rn = 1\n),\nkeyed AS (\n  SELECT\n    CONVERT(CHAR(64),\n      HASHBYTES('SHA2_256', CONCAT(\n        COALESCE(UPPER(LTRIM(RTRIM(vendor_code))),'') , '|',\n        CONVERT(VARCHAR(23), pickup_ts_utc, 126)      , '|',\n        CONVERT(VARCHAR(23), dropoff_ts_utc, 126)     , '|',\n        CONVERT(VARCHAR(50), CAST(fare_amount AS DECIMAL(18,2))) , '|',\n        CONVERT(VARCHAR(50), CAST(trip_distance_km AS DECIMAL(18,3))) , '|',\n        COALESCE(UPPER(LTRIM(RTRIM(payment_type))),'')\n      ))\n    , 2) AS trip_id,\n\n    (YEAR(pickup_ts_utc)*10000 + MONTH(pickup_ts_utc)*100 + DAY(pickup_ts_utc)) AS pickup_date_key,\n    (DATEPART(HOUR, pickup_ts_utc) * 3600 +\n     DATEPART(MINUTE, pickup_ts_utc) * 60 +\n     DATEPART(SECOND, pickup_ts_utc)) AS pickup_time_key,\n\n    COALESCE(v.vendor_key, -1)       AS vendor_key,\n    COALESCE(p.payment_type_key, -1) AS payment_type_key,\n    COALESCE(r.rate_code_key, -1)    AS rate_code_key,\n    COALESCE(f.flag_key, -1)         AS flag_key,\n    COALESCE(pu.location_key, -1)    AS pu_location_key,\n    COALESCE(do_.location_key, -1)   AS do_location_key,\n\n    trip_distance_km,\n    fare_amount,\n    tip_amount,\n    tolls_amount,\n    total_amount,\n    ingest_date,\n    source_file_name,\n    loaded_at\n  FROM picked x\n  LEFT JOIN mdl.dim_vendor        v  ON v.vendor_code_nk   = UPPER(LTRIM(RTRIM(x.vendor_code)))\n  LEFT JOIN mdl.dim_payment_type  p  ON p.payment_type_nk  = UPPER(LTRIM(RTRIM(x.payment_type)))\n  LEFT JOIN mdl.dim_rate_code     r  ON r.rate_code_nk     = x.rate_code_nk\n  LEFT JOIN mdl.dim_flag          f  ON f.flag_nk          = x.flag_nk\n  LEFT JOIN mdl.dim_location      pu ON pu.location_id_nk  = x.pu_location_nk\n  LEFT JOIN mdl.dim_location      do_ ON do_.location_id_nk = x.do_location_nk\n)\nINSERT INTO mdl.fact_trip\n(\n  trip_id,\n  pickup_date_key, pickup_time_key,\n  pu_location_key, do_location_key,\n  vendor_key, payment_type_key, rate_code_key, flag_key,\n  trip_distance_km, fare_amount, tip_amount, tolls_amount, total_amount,\n  ingest_date, source_file_name, loaded_at\n)\nSELECT\n  trip_id,\n  pickup_date_key, pickup_time_key,\n  pu_location_key, do_location_key,\n  vendor_key, payment_type_key, rate_code_key, flag_key,\n  trip_distance_km, fare_amount, tip_amount, tolls_amount, total_amount,\n  ingest_date, source_file_name, loaded_at\nFROM keyed;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "LogSuccess",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "ModelDQ_Gate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='core_to_mdl';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @rows   BIGINT=(SELECT COUNT(*) FROM mdl.fact_trip WHERE ingest_date=@d);\n\nUPDATE ops.run_log\n   SET status='SUCCEEDED', rows_copied=@rows, finished_at_utc=SYSUTCDATETIME()\n WHERE run_id=@run_id AND stage=@stage;\n\nIF NOT EXISTS (SELECT 1 FROM ops.run_log WHERE run_id=@run_id AND stage=@stage)\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\nSELECT @run_id, @stage, '@{pipeline().parameters.dataset}', @d, 'SUCCEEDED', SYSUTCDATETIME(), SYSUTCDATETIME(), @rows;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "LogFailure",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "ModelDQ_Gate",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='core_to_mdl';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @rows   BIGINT=(SELECT COUNT(*) FROM mdl.fact_trip WHERE ingest_date=@d);\n\nUPDATE ops.run_log\n   SET status='FAILED', rows_copied=@rows, finished_at_utc=SYSUTCDATETIME()\n WHERE run_id=@run_id AND stage=@stage;\n\nIF NOT EXISTS (SELECT 1 FROM ops.run_log WHERE run_id=@run_id AND stage=@stage)\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\nSELECT @run_id, @stage, '@{pipeline().parameters.dataset}', @d, 'FAILED', SYSUTCDATETIME(), SYSUTCDATETIME(), @rows;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"dataset": {
+						"type": "string",
+						"defaultValue": "nyctaxi_yellow"
+					},
+					"run_date": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_syn_sql')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_daily_nyctaxi')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -120,6 +522,39 @@
 								}
 							}
 						}
+					},
+					{
+						"name": "Run_CoreToMdl",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Run_StgToCore",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_core_to_mdl_nyctaxi",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"dataset": {
+									"value": "@pipeline().parameters.dataset",
+									"type": "Expression"
+								},
+								"run_date": {
+									"value": "@pipeline().parameters.run_date",
+									"type": "Expression"
+								}
+							}
+						}
 					}
 				],
 				"policy": {
@@ -139,7 +574,8 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/pl_raw_to_stg_nyctaxi')]",
-				"[concat(variables('factoryId'), '/pipelines/pl_stg_to_core_nyctaxi')]"
+				"[concat(variables('factoryId'), '/pipelines/pl_stg_to_core_nyctaxi')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_core_to_mdl_nyctaxi')]"
 			]
 		},
 		{
@@ -1152,7 +1588,7 @@
 								{
 									"type": "Query",
 									"text": {
-										"value": "-- CoreDQ_Gate (core-layer data quality for a single ingest_date)\n-- Assumes tables: stg.trip, core.trip_clean, err.trip (optional)\n-- Fails the activity on any hard violation via THROW.\n\nDECLARE @ingest_date DATE = '@{pipeline().parameters.run_date}';\n\n-- Row counts\nDECLARE @rows_stg   BIGINT = (SELECT COUNT(*) FROM stg.trip       WHERE ingest_date = @ingest_date);\nDECLARE @rows_core  BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date = @ingest_date);\nDECLARE @rows_err   BIGINT = (SELECT COUNT(*) FROM err.trip       WHERE ingest_date = @ingest_date);\n\n-- Core domain/consistency checks\nDECLARE @bad_time         BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND pickup_ts_utc > dropoff_ts_utc\n);\n\nDECLARE @neg_fare         BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND fare_amount < 0\n);\n\nDECLARE @neg_distance     BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND trip_distance_km < 0\n);\n\nDECLARE @null_pickup      BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND pickup_ts_utc IS NULL\n);\n\nDECLARE @null_dropoff     BIGINT = (\n  SELECT COUNT(*) FROM core.trip_clean\n  WHERE ingest_date=@ingest_date AND dropoff_ts_utc IS NULL\n);\n\nDECLARE @dupe_trip_id     BIGINT = (\n  SELECT COUNT(*)\n  FROM (\n    SELECT trip_id\n    FROM core.trip_clean\n    WHERE ingest_date=@ingest_date AND trip_id IS NOT NULL\n    GROUP BY trip_id\n    HAVING COUNT(*) > 1\n  ) d\n);\n\n-- Optional sanity: core + err should not exceed staging (if you capture err rows)\nDECLARE @core_plus_err_gt_stg BIT =\n  CASE WHEN @rows_err IS NULL THEN 0\n       WHEN (@rows_core + @rows_err) > @rows_stg THEN 1 ELSE 0 END;\n\n-- Quick human-readable summary (shows in activity output logs)\nSELECT\n  @ingest_date  AS ingest_date,\n  @rows_stg     AS rows_stg,\n  @rows_core    AS rows_core,\n  @rows_err     AS rows_err,\n  @bad_time     AS bad_time_order_cnt,\n  @neg_fare     AS negative_fare_cnt,\n  @neg_distance AS negative_distance_cnt,\n  @null_pickup  AS null_pickup_cnt,\n  @null_dropoff AS null_dropoff_cnt,\n  @dupe_trip_id AS duplicate_trip_id_cnt;\n\n-- Hard fail conditions (stop the pipeline with a clear message)\nIF @rows_core = 0\n  THROW 52000, 'DQ FAIL: core.trip_clean has 0 rows for ingest_date.', 1;\n\nIF @bad_time > 0\n  THROW 52001, 'DQ FAIL: pickup_ts_utc > dropoff_ts_utc detected in core.', 1;\n\nIF @neg_fare > 0\n  THROW 52002, 'DQ FAIL: Negative fare_amount rows present in core.', 1;\n\nIF @neg_distance > 0\n  THROW 52003, 'DQ FAIL: Negative trip_distance_km rows present in core.', 1;\n\nIF @null_pickup > 0\n  THROW 52004, 'DQ FAIL: NULL pickup_ts_utc rows present in core.', 1;\n\nIF @null_dropoff > 0\n  THROW 52005, 'DQ FAIL: NULL dropoff_ts_utc rows present in core.', 1;\n\nIF @dupe_trip_id > 0\n  THROW 52006, 'DQ FAIL: Duplicate trip_id detected in core for this slice.', 1;\n\nIF @core_plus_err_gt_stg = 1\n  THROW 52007, 'DQ FAIL: (core + err) row count exceeds staging row count for this slice.', 1;\n\n-- If we reach here, all checks passed (no THROW)\n",
+										"value": "-- CoreDQ_Gate: log outcomes to ops.dq_result and fail on hard errors\n\nDECLARE @run_id NVARCHAR(64)  = '@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)  = 'stg_to_core';\nDECLARE @d      DATE          = '@{pipeline().parameters.run_date}';\nDECLARE @now    DATETIME2(3)  = SYSUTCDATETIME();\n\n-- Row counts\nDECLARE @rows_stg   BIGINT = (SELECT COUNT(*) FROM stg.trip        WHERE ingest_date=@d);\nDECLARE @rows_core  BIGINT = (SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date=@d);\nDECLARE @rows_err   BIGINT = (SELECT COUNT(*) FROM err.trip        WHERE ingest_date=@d);\n\n-- Core consistency checks\nDECLARE @bad_time BIGINT =\n(SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date=@d AND pickup_ts_utc > dropoff_ts_utc);\n\nDECLARE @neg_fare BIGINT =\n(SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date=@d AND fare_amount < 0);\n\nDECLARE @neg_dist BIGINT =\n(SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date=@d AND trip_distance_km < 0);\n\nDECLARE @null_pickup BIGINT =\n(SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date=@d AND pickup_ts_utc IS NULL);\n\nDECLARE @null_dropoff BIGINT =\n(SELECT COUNT(*) FROM core.trip_clean WHERE ingest_date=@d AND dropoff_ts_utc IS NULL);\n\n-- Duplicates in core after dedupe (should be zero)\nDECLARE @dupe_core BIGINT =\n(\n  SELECT COUNT(*) FROM (\n    SELECT vendor_code, pickup_ts_utc, dropoff_ts_utc, fare_amount, trip_distance_km, payment_type\n    FROM core.trip_clean\n    WHERE ingest_date=@d\n    GROUP BY vendor_code, pickup_ts_utc, dropoff_ts_utc, fare_amount, trip_distance_km, payment_type\n    HAVING COUNT(*) > 1\n  ) d\n);\n\n-- Core+Err should never exceed staging for a slice\nDECLARE @core_plus_err_gt_stg BIT =\n  CASE WHEN @rows_err IS NULL THEN 0\n       WHEN (@rows_core + @rows_err) > @rows_stg THEN 1 ELSE 0 END;\n\n-- Avoid duplicate log rows for retries/reruns of the same run_id\nDELETE FROM ops.dq_result WHERE run_id=@run_id AND stage=@stage AND ingest_date=@d;\n\n-- Log all outcomes (PASSED/FAILED)\nINSERT INTO ops.dq_result\n(run_id, stage, check_name, ingest_date, status, actual_value, threshold_value, error_message, created_at_utc)\nSELECT @run_id, @stage, 'rowcount_core_gt_0', @d,\n       CASE WHEN @rows_core > 0 THEN 'PASSED' ELSE 'FAILED' END,\n       @rows_core, 1, NULL, @now\nUNION ALL\nSELECT @run_id, @stage, 'no_bad_time_order', @d,\n       CASE WHEN @bad_time = 0 THEN 'PASSED' ELSE 'FAILED' END,\n       @bad_time, 0, NULL, @now\nUNION ALL\nSELECT @run_id, @stage, 'no_negative_fare', @d,\n       CASE WHEN @neg_fare = 0 THEN 'PASSED' ELSE 'FAILED' END,\n       @neg_fare, 0, NULL, @now\nUNION ALL\nSELECT @run_id, @stage, 'no_negative_distance', @d,\n       CASE WHEN @neg_dist = 0 THEN 'PASSED' ELSE 'FAILED' END,\n       @neg_dist, 0, NULL, @now\nUNION ALL\nSELECT @run_id, @stage, 'no_null_pickup_ts', @d,\n       CASE WHEN @null_pickup = 0 THEN 'PASSED' ELSE 'FAILED' END,\n       @null_pickup, 0, NULL, @now\nUNION ALL\nSELECT @run_id, @stage, 'no_null_dropoff_ts', @d,\n       CASE WHEN @null_dropoff = 0 THEN 'PASSED' ELSE 'FAILED' END,\n       @null_dropoff, 0, NULL, @now\nUNION ALL\nSELECT @run_id, @stage, 'no_duplicate_core_rows', @d,\n       CASE WHEN @dupe_core = 0 THEN 'PASSED' ELSE 'FAILED' END,\n       @dupe_core, 0, NULL, @now\nUNION ALL\nSELECT @run_id, @stage, 'core_plus_err_le_stg', @d,\n       CASE WHEN @core_plus_err_gt_stg = 0 THEN 'PASSED' ELSE 'FAILED' END,\n       (@rows_core + @rows_err) - @rows_stg, 0, NULL, @now;\n\n-- Hard fail if any FAILED status exists for this run/date\nIF EXISTS (\n  SELECT 1 FROM ops.dq_result\n  WHERE run_id=@run_id AND stage=@stage AND ingest_date=@d AND status='FAILED'\n)\n  THROW 53000, 'DQ FAIL: One or more core checks failed. See ops.dq_result for details.', 1;\n",
 										"type": "Expression"
 									}
 								}
