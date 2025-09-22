@@ -17,9 +17,18 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"dataset": "@pipeline().parameters.dataset",
-						"run_date": "@pipeline().parameters.run_date",
-						"run_id": "@pipeline().RunId"
+						"dataset": {
+							"value": "@pipeline().parameters.dataset",
+							"type": "Expression"
+						},
+						"run_date": {
+							"value": "@pipeline().parameters.run_date",
+							"type": "Expression"
+						},
+						"run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -41,6 +50,39 @@
 				"typeProperties": {
 					"pipeline": {
 						"referenceName": "pl_stg_to_core_nyctaxi",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataset": {
+							"value": "@pipeline().parameters.dataset",
+							"type": "Expression"
+						},
+						"run_date": {
+							"value": "@pipeline().parameters.run_date",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Run_CoreToMdl",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Run_StgToCore",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_core_to_mdl_nyctaxi",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true,
