@@ -34,7 +34,14 @@
 			{
 				"name": "DimVendor_Upsert",
 				"type": "Script",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "LogStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -52,6 +59,138 @@
 						{
 							"type": "Query",
 							"text": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(vendor_code))) AS vendor_code_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND vendor_code IS NOT NULL AND LTRIM(RTRIM(vendor_code)) <> ''\n)\nMERGE mdl.dim_vendor AS tgt\nUSING src AS s\n  ON tgt.vendor_code_nk = s.vendor_code_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (vendor_code_nk, active_flag, valid_from_utc)\n  SELECT s.vendor_code_nk, 1, SYSUTCDATETIME();\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "DimPayment_Upsert",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "DimVendor_Upsert",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(payment_type))) AS payment_type_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND payment_type IS NOT NULL AND LTRIM(RTRIM(payment_type)) <> ''\n)\nMERGE mdl.dim_payment_type AS tgt\nUSING src AS s\n  ON tgt.payment_type_nk = s.payment_type_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (payment_type_nk) VALUES (s.payment_type_nk);\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "DimRate_Upsert",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "DimPayment_Upsert",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT\n         CAST(RatecodeID AS VARCHAR(16)) AS rate_code_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND RatecodeID IS NOT NULL\n)\nMERGE mdl.dim_rate_code AS tgt\nUSING src AS s\n  ON tgt.rate_code_nk = s.rate_code_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (rate_code_nk) VALUES (s.rate_code_nk);\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "DimFlag_Upsert",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "DimRate_Upsert",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT\n         UPPER(LTRIM(RTRIM(store_and_fwd_flag))) AS flag_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND store_and_fwd_flag IS NOT NULL\n    AND LTRIM(RTRIM(store_and_fwd_flag)) <> ''\n)\nMERGE mdl.dim_flag AS tgt\nUSING src AS s\n  ON tgt.flag_nk = s.flag_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (flag_nk, meaning) VALUES (s.flag_nk, NULL);\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "DimLocation_Upsert",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "DimFlag_Upsert",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT CAST(PULocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND PULocationID IS NOT NULL\n  UNION\n  SELECT DISTINCT CAST(DOLocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND DOLocationID IS NOT NULL\n)\nMERGE mdl.dim_location AS tgt\nUSING src AS s\n  ON tgt.location_id_nk = s.location_id_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (location_id_nk) VALUES (s.location_id_nk);\n"
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
