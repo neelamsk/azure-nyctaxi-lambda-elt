@@ -1,0 +1,17 @@
+{
+	"name": "dim_date_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('mdl.dim_date') IS NULL\nBEGIN\n  CREATE TABLE mdl.dim_date\n  (\n    date_key      INT        NOT NULL,  -- YYYYMMDD\n    date_value    DATE       NOT NULL,\n    [year]        SMALLINT   NOT NULL,\n    [quarter]     TINYINT    NOT NULL,\n    [month]       TINYINT    NOT NULL,\n    [day]         TINYINT    NOT NULL,\n    week_of_year  TINYINT    NOT NULL,\n    iso_year      SMALLINT   NOT NULL,\n    iso_week      TINYINT    NOT NULL,\n    is_weekend    BIT        NOT NULL,\n    is_holiday    BIT        NOT NULL DEFAULT 0,\n    CONSTRAINT PK_dim_date PRIMARY KEY NONCLUSTERED (date_key) NOT ENFORCED\n  )\n  WITH (DISTRIBUTION = REPLICATE, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
