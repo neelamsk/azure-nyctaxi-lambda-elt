@@ -1,0 +1,17 @@
+{
+	"name": "dim_time_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('mdl.dim_time') IS NULL\nBEGIN\n  CREATE TABLE mdl.dim_time\n  (\n    time_key     INT       NOT NULL,  -- 0..86399\n    hh24         TINYINT   NOT NULL,\n    mm           TINYINT   NOT NULL,\n    ss           TINYINT   NOT NULL,\n    hour_bucket  VARCHAR(11) NULL,    -- e.g., '22:00-22:59'\n    is_night     BIT       NOT NULL,  -- 22:00–05:59\n    CONSTRAINT PK_dim_time PRIMARY KEY NONCLUSTERED (time_key) not enforced\n  )\n  WITH (DISTRIBUTION = REPLICATE, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
