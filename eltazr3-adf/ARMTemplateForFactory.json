@@ -332,7 +332,7 @@
 						"type": "Script",
 						"dependsOn": [
 							{
-								"activity": "FactTrip_Load",
+								"activity": "PostLoad_Stats",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -428,6 +428,42 @@
 									"type": "Query",
 									"text": {
 										"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='core_to_mdl';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\nDECLARE @rows   BIGINT=(SELECT COUNT(*) FROM mdl.fact_trip WHERE ingest_date=@d);\n\nUPDATE ops.run_log\n   SET status='FAILED', rows_copied=@rows, finished_at_utc=SYSUTCDATETIME()\n WHERE run_id=@run_id AND stage=@stage;\n\nIF NOT EXISTS (SELECT 1 FROM ops.run_log WHERE run_id=@run_id AND stage=@stage)\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc, finished_at_utc, rows_copied)\nSELECT @run_id, @stage, '@{pipeline().parameters.dataset}', @d, 'FAILED', SYSUTCDATETIME(), SYSUTCDATETIME(), @rows;\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "PostLoad_Stats",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "FactTrip_Load",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_syn_sql",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "-- Post-load statistics refresh for Modeling layer\n-- Safe to run every slice; idempotent\n\nDECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n-- One-time stats (created if missing) on common filter/join columns\nIF NOT EXISTS (SELECT 1 FROM sys.stats WHERE object_id = OBJECT_ID('mdl.fact_trip') AND name = 'st_fact_trip_pickup_date_key')\n  CREATE STATISTICS st_fact_trip_pickup_date_key ON mdl.fact_trip(pickup_date_key);\n\nIF NOT EXISTS (SELECT 1 FROM sys.stats WHERE object_id = OBJECT_ID('mdl.fact_trip') AND name = 'st_fact_trip_vendor_key')\n  CREATE STATISTICS st_fact_trip_vendor_key ON mdl.fact_trip(vendor_key);\n\nIF NOT EXISTS (SELECT 1 FROM sys.stats WHERE object_id = OBJECT_ID('mdl.fact_trip') AND name = 'st_fact_trip_payment_type_key')\n  CREATE STATISTICS st_fact_trip_payment_type_key ON mdl.fact_trip(payment_type_key);\n\nIF NOT EXISTS (SELECT 1 FROM sys.stats WHERE object_id = OBJECT_ID('mdl.fact_trip') AND name = 'st_fact_trip_pu_key')\n  CREATE STATISTICS st_fact_trip_pu_key ON mdl.fact_trip(pu_location_key);\n\nIF NOT EXISTS (SELECT 1 FROM sys.stats WHERE object_id = OBJECT_ID('mdl.fact_trip') AND name = 'st_fact_trip_do_key')\n  CREATE STATISTICS st_fact_trip_do_key ON mdl.fact_trip(do_location_key);\n\nIF NOT EXISTS (SELECT 1 FROM sys.stats WHERE object_id = OBJECT_ID('mdl.fact_trip') AND name = 'st_fact_trip_ingest_date')\n  CREATE STATISTICS st_fact_trip_ingest_date ON mdl.fact_trip(ingest_date);\n\n-- Refresh stats after slice insert (keeps plans healthy)\nUPDATE STATISTICS mdl.fact_trip;\n-- Location is the only dim that can grow meaningfully day to day\nUPDATE STATISTICS mdl.dim_location;\n\n-- (Optional) if you expect frequent changes to other dims, uncomment:\n-- UPDATE STATISTICS mdl.dim_vendor;\n-- UPDATE STATISTICS mdl.dim_payment_type;\n-- UPDATE STATISTICS mdl.dim_rate_code;\n-- UPDATE STATISTICS mdl.dim_flag;\n",
 										"type": "Expression"
 									}
 								}
