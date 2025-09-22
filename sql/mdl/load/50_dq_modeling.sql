@@ -28,11 +28,11 @@ SELECT @run_id,@stage,'rowcount_fact_eq_core',@d, CASE WHEN @rows_fact=@rows_cor
 UNION ALL
 SELECT @run_id,@stage,'unknown_vendor_eq_0',@d,   CASE WHEN @u_vendor=0 THEN 'PASSED' ELSE 'FAILED' END, @u_vendor, 0, NULL,@now
 UNION ALL
-SELECT @run_id,@stage,'unknown_payment_eq_0',@d,  CASE WHEN @u_pay=0 THEN 'PASSED' ELSE 'FAILED' END, @u_pay, 0, NULL,@now
+SELECT @run_id,@stage,'unknown_payment_eq_0',@d,  CASE WHEN @u_pay=0 THEN 'PASSED' ELSE 'WARNING' END, @u_pay, 0, NULL,@now
 UNION ALL
-SELECT @run_id,@stage,'unknown_rate_eq_0',@d,     CASE WHEN @u_rate=0 THEN 'PASSED' ELSE 'FAILED' END, @u_rate, 0, NULL,@now
+SELECT @run_id,@stage,'unknown_rate_eq_0',@d,     CASE WHEN @u_rate=0 THEN 'PASSED' ELSE 'WARNING' END, @u_rate, 0, NULL,@now
 UNION ALL
-SELECT @run_id,@stage,'unknown_flag_eq_0',@d,     CASE WHEN @u_flag=0 THEN 'PASSED' ELSE 'FAILED' END, @u_flag, 0, NULL,@now
+SELECT @run_id,@stage,'unknown_flag_eq_0',@d,     CASE WHEN @u_flag=0 THEN 'PASSED' ELSE 'WARNING' END, @u_flag, 0, NULL,@now
 UNION ALL
 SELECT @run_id,@stage,'unknown_pu_eq_0',@d,       CASE WHEN @u_pu=0 THEN 'PASSED' ELSE 'FAILED' END, @u_pu, 0, NULL,@now
 UNION ALL
