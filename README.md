@@ -43,10 +43,13 @@
 
 - Orchestrator: **`pl_daily_nyctaxi`** runs **raw → stg → core → mdl** with the **same** `run_date`.
 - Single daily trigger (only on orchestrator). Backfill by calling the orchestrator with date lists.
+![Orchestrator runs table](docs/img/orchestrator_runs_table.png)
+
 
 ---
 
 ## 6) Observability & Alerts
+![DQ gates timeline](docs/img/dq_gates_timeline.png)
 
 **Tables:** `ops.run_log`, `ops.run_metrics`, `ops.dq_result` (staging, core, modeling stages).  
 **Alerts (Azure Monitor):**  
@@ -56,6 +59,10 @@
 **Future (optional):**  
 - Log Analytics workbook: pipeline run trend, DQ pass/fail trend, rows_loaded by date.  
 - Add **cost view** (SQL DW pause/resume windows; data processed).
+![DQ results (ops.dq_result)](docs/img/dq_results_sql.png)
+![Run log (ops.run_log)](docs/img/run_log_sql.png)
+
+
 
 ---
 
@@ -85,6 +92,11 @@
 
 **Expected lineage:**  
 `raw file → (ADF Copy) → stg.trip → (Script) → core.trip_clean → (Script) → mdl.fact_trip`
+
+![Purview resource set grouping (raw)](docs/img/purview_raw_resource_set.png)
+![Purview lineage for mdl.fact_trip](docs/img/purview_lineage_fact_trip.png)
+
+
 
 ---
 
