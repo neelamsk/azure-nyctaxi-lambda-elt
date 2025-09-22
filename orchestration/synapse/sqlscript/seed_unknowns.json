@@ -1,0 +1,17 @@
+{
+	"name": "seed_unknowns",
+	"properties": {
+		"content": {
+			"query": "-- Seed \"-1 / Unknown\" members (so fact can always resolve to a surrogate).\n-- You can re-run safely: use IF NOT EXISTS guards.\n\n-- dim_vendor\nIF NOT EXISTS (SELECT 1 FROM mdl.dim_vendor WHERE vendor_key = -1)\nBEGIN\n  SET IDENTITY_INSERT mdl.dim_vendor ON;\n  INSERT INTO mdl.dim_vendor (vendor_key, vendor_code_nk, vendor_name, active_flag)\n  VALUES (-1, 'UNKNOWN', 'Unknown Vendor', 0);\n  SET IDENTITY_INSERT mdl.dim_vendor OFF;\nEND;\n\n-- dim_payment_type\nIF NOT EXISTS (SELECT 1 FROM mdl.dim_payment_type WHERE payment_type_key = -1)\nBEGIN\n  SET IDENTITY_INSERT mdl.dim_payment_type ON;\n  INSERT INTO mdl.dim_payment_type (payment_type_key, payment_type_nk, description)\n  VALUES (-1, 'UNKNOWN', 'Unknown Payment');\n  SET IDENTITY_INSERT mdl.dim_payment_type OFF;\nEND;\n\n-- dim_rate_code\nIF NOT EXISTS (SELECT 1 FROM mdl.dim_rate_code WHERE rate_code_key = -1)\nBEGIN\n  SET IDENTITY_INSERT mdl.dim_rate_code ON;\n  INSERT INTO mdl.dim_rate_code (rate_code_key, rate_code_nk, description)\n  VALUES (-1, 'UNKNOWN', 'Unknown Rate Code');\n  SET IDENTITY_INSERT mdl.dim_rate_code OFF;\nEND;\n\n-- dim_flag\nIF NOT EXISTS (SELECT 1 FROM mdl.dim_flag WHERE flag_key = -1)\nBEGIN\n  SET IDENTITY_INSERT mdl.dim_flag ON;\n  INSERT INTO mdl.dim_flag (flag_key, flag_nk, meaning)\n  VALUES (-1, 'UNKNOWN', 'Unknown Flag');\n  SET IDENTITY_INSERT mdl.dim_flag OFF;\nEND;\n\n-- dim_location\nIF NOT EXISTS (SELECT 1 FROM mdl.dim_location WHERE location_key = -1)\nBEGIN\n  SET IDENTITY_INSERT mdl.dim_location ON;\n  INSERT INTO mdl.dim_location (location_key, location_id_nk, borough, zone, service_zone)\n  VALUES (-1, -1, 'Unknown', 'Unknown', 'Unknown');\n  SET IDENTITY_INSERT mdl.dim_location OFF;\nEND;\n\n-- dim_date (you can add a -1 row if your BI model expects one; otherwise not required)\n-- dim_time (same note as above)\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
