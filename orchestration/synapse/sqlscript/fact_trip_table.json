@@ -1,0 +1,17 @@
+{
+	"name": "fact_trip_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('mdl.fact_trip') IS NULL\nBEGIN\n  CREATE TABLE mdl.fact_trip\n  (\n    -- Degenerate, deterministic trip identifier (SHA-256 hex). High-cardinality; used for HASH distribution.\n    trip_id             CHAR(64)    NOT NULL,\n\n    -- Foreign keys (surrogate keys from dims)\n    pickup_date_key     INT         NOT NULL,\n    pickup_time_key     INT         NULL,\n    pu_location_key     INT         NULL,\n    do_location_key     INT         NULL,\n    vendor_key          INT         NOT NULL,\n    payment_type_key    INT         NOT NULL,\n    rate_code_key       INT         NULL,\n    flag_key            INT         NULL,\n\n    -- Measures (additive)\n    trip_distance_km    DECIMAL(9,3)  NULL,\n    fare_amount         DECIMAL(10,2) NULL,\n    tip_amount          DECIMAL(10,2) NULL,\n    tolls_amount        DECIMAL(10,2) NULL,\n    total_amount        DECIMAL(10,2) NULL,\n\n    -- Lineage\n    ingest_date         DATE          NOT NULL,\n    source_file_name    VARCHAR(256)  NULL,\n    loaded_at           DATETIME2     NULL\n  )\n  WITH (\n    DISTRIBUTION = HASH (trip_id),\n    CLUSTERED COLUMNSTORE INDEX\n  );\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

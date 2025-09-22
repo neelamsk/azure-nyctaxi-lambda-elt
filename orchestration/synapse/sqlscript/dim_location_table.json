@@ -1,0 +1,17 @@
+{
+	"name": "dim_location_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('mdl.dim_location') IS NULL\nBEGIN\n  CREATE TABLE mdl.dim_location\n  (\n    location_key     INT IDENTITY(1,1) NOT NULL,\n    location_id_nk   SMALLINT   NOT NULL,   -- TLC Zone ID (from stg.PU/DO LocationID)\n    borough          VARCHAR(64)  NULL,\n    zone             VARCHAR(128) NULL,\n    service_zone     VARCHAR(64)  NULL,\n    CONSTRAINT PK_dim_location PRIMARY KEY NONCLUSTERED (location_key) NOT ENFORCED\n  )\n  WITH (DISTRIBUTION = REPLICATE, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

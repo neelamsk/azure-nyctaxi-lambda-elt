@@ -1,0 +1,17 @@
+{
+	"name": "dim_flag_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('mdl.dim_flag') IS NULL\nBEGIN\n  CREATE TABLE mdl.dim_flag\n  (\n    flag_key   INT IDENTITY(1,1) NOT NULL,\n    flag_nk    VARCHAR(8) NOT NULL,   -- e.g., 'Y'/'N'\n    meaning    NVARCHAR(128) NULL,\n    CONSTRAINT PK_dim_flag PRIMARY KEY NONCLUSTERED (flag_key) NOT ENFORCED\n  )\n  WITH (DISTRIBUTION = REPLICATE, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
