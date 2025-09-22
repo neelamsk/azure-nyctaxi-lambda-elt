@@ -9,8 +9,9 @@ DECLARE @d DATE = '@{pipeline().parameters.run_date}';
   FROM stg.trip
   WHERE ingest_date = @d AND DOLocationID IS NOT NULL
 )
-MERGE mdl.dim_location AS tgt
-USING src AS s
-  ON tgt.location_id_nk = s.location_id_nk
-WHEN NOT MATCHED BY TARGET THEN
-  INSERT (location_id_nk) VALUES (s.location_id_nk);
+INSERT INTO mdl.dim_location (location_id_nk)
+SELECT s.location_id_nk
+FROM src s
+LEFT JOIN mdl.dim_location t
+  ON t.location_id_nk = s.location_id_nk
+WHERE t.location_id_nk IS NULL;
