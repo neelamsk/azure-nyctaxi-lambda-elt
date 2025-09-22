@@ -1,0 +1,17 @@
+{
+	"name": "dim_vendor_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('mdl.dim_vendor') IS NULL\nBEGIN\n  CREATE TABLE mdl.dim_vendor\n  (\n    vendor_key       INT IDENTITY(1,1) NOT NULL,\n    vendor_code_nk   VARCHAR(32)  NOT NULL,\n    vendor_name      NVARCHAR(128) NULL,\n    active_flag      BIT          NOT NULL DEFAULT 1,\n    valid_from_utc   DATETIME2    NULL,\n    valid_to_utc     DATETIME2    NULL,\n    CONSTRAINT PK_dim_vendor PRIMARY KEY NONCLUSTERED (vendor_key) NOT ENFORCED\n  )\n  WITH (DISTRIBUTION = REPLICATE, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
