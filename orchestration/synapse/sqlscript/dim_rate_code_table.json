@@ -1,0 +1,17 @@
+{
+	"name": "dim_rate_code_table",
+	"properties": {
+		"content": {
+			"query": "IF OBJECT_ID('mdl.dim_rate_code') IS NULL\nBEGIN\n  CREATE TABLE mdl.dim_rate_code\n  (\n    rate_code_key  INT IDENTITY(1,1) NOT NULL,\n    rate_code_nk   VARCHAR(16) NOT NULL,   -- from stg.RatecodeID\n    description    NVARCHAR(128) NULL,\n    CONSTRAINT PK_dim_rate_code PRIMARY KEY NONCLUSTERED (rate_code_key) NOT ENFORCED\n  )\n  WITH (DISTRIBUTION = REPLICATE, HEAP);\nEND;\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "eltazr3_sqlpool",
+				"poolName": "eltazr3_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
