@@ -59,7 +59,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(vendor_code))) AS vendor_code_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND vendor_code IS NOT NULL AND LTRIM(RTRIM(vendor_code)) <> ''\n)\nMERGE mdl.dim_vendor AS tgt\nUSING src AS s\n  ON tgt.vendor_code_nk = s.vendor_code_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (vendor_code_nk, active_flag, valid_from_utc)\n  SELECT s.vendor_code_nk, 1, SYSUTCDATETIME();\n",
+								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(vendor_code))) AS vendor_code_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND vendor_code IS NOT NULL AND LTRIM(RTRIM(vendor_code)) <> ''\n)\nINSERT INTO mdl.dim_vendor (vendor_code_nk, active_flag, valid_from_utc)\nSELECT s.vendor_code_nk, 1, SYSUTCDATETIME()\nFROM src s\nLEFT JOIN mdl.dim_vendor t\n  ON t.vendor_code_nk = s.vendor_code_nk\nWHERE t.vendor_code_nk IS NULL;\n",
 								"type": "Expression"
 							}
 						}
@@ -95,7 +95,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(payment_type))) AS payment_type_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND payment_type IS NOT NULL AND LTRIM(RTRIM(payment_type)) <> ''\n)\nMERGE mdl.dim_payment_type AS tgt\nUSING src AS s\n  ON tgt.payment_type_nk = s.payment_type_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (payment_type_nk) VALUES (s.payment_type_nk);\n",
+								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(payment_type))) AS payment_type_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND payment_type IS NOT NULL AND LTRIM(RTRIM(payment_type)) <> ''\n)\nINSERT INTO mdl.dim_payment_type (payment_type_nk)\nSELECT s.payment_type_nk\nFROM src s\nLEFT JOIN mdl.dim_payment_type t\n  ON t.payment_type_nk = s.payment_type_nk\nWHERE t.payment_type_nk IS NULL;\n",
 								"type": "Expression"
 							}
 						}
@@ -131,7 +131,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT\n         CAST(RatecodeID AS VARCHAR(16)) AS rate_code_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND RatecodeID IS NOT NULL\n)\nMERGE mdl.dim_rate_code AS tgt\nUSING src AS s\n  ON tgt.rate_code_nk = s.rate_code_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (rate_code_nk) VALUES (s.rate_code_nk);\n",
+								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT CAST(RatecodeID AS VARCHAR(16)) AS rate_code_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND RatecodeID IS NOT NULL\n)\nINSERT INTO mdl.dim_rate_code (rate_code_nk)\nSELECT s.rate_code_nk\nFROM src s\nLEFT JOIN mdl.dim_rate_code t\n  ON t.rate_code_nk = s.rate_code_nk\nWHERE t.rate_code_nk IS NULL;\n",
 								"type": "Expression"
 							}
 						}
@@ -167,7 +167,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT\n         UPPER(LTRIM(RTRIM(store_and_fwd_flag))) AS flag_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND store_and_fwd_flag IS NOT NULL\n    AND LTRIM(RTRIM(store_and_fwd_flag)) <> ''\n)\nMERGE mdl.dim_flag AS tgt\nUSING src AS s\n  ON tgt.flag_nk = s.flag_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (flag_nk, meaning) VALUES (s.flag_nk, NULL);\n",
+								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(store_and_fwd_flag))) AS flag_nk\n  FROM stg.trip\n  WHERE ingest_date = @d\n    AND store_and_fwd_flag IS NOT NULL\n    AND LTRIM(RTRIM(store_and_fwd_flag)) <> ''\n)\nINSERT INTO mdl.dim_flag (flag_nk, meaning)\nSELECT s.flag_nk, NULL\nFROM src s\nLEFT JOIN mdl.dim_flag t\n  ON t.flag_nk = s.flag_nk\nWHERE t.flag_nk IS NULL;\n",
 								"type": "Expression"
 							}
 						}
@@ -203,7 +203,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT CAST(PULocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND PULocationID IS NOT NULL\n  UNION\n  SELECT DISTINCT CAST(DOLocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND DOLocationID IS NOT NULL\n)\nMERGE mdl.dim_location AS tgt\nUSING src AS s\n  ON tgt.location_id_nk = s.location_id_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (location_id_nk) VALUES (s.location_id_nk);\n",
+								"value": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT CAST(PULocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND PULocationID IS NOT NULL\n  UNION\n  SELECT DISTINCT CAST(DOLocationID AS SMALLINT) AS location_id_nk\n  FROM stg.trip\n  WHERE ingest_date = @d AND DOLocationID IS NOT NULL\n)\nINSERT INTO mdl.dim_location (location_id_nk)\nSELECT s.location_id_nk\nFROM src s\nLEFT JOIN mdl.dim_location t\n  ON t.location_id_nk = s.location_id_nk\nWHERE t.location_id_nk IS NULL;\n",
 								"type": "Expression"
 							}
 						}
