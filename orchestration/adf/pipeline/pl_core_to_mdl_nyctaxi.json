@@ -1,0 +1,72 @@
+{
+	"name": "pl_core_to_mdl_nyctaxi",
+	"properties": {
+		"activities": [
+			{
+				"name": "LogStart",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "DECLARE @run_id NVARCHAR(64)='@{pipeline().RunId}';\nDECLARE @stage  NVARCHAR(32)='core_to_mdl';\nDECLARE @ds     NVARCHAR(128)='@{pipeline().parameters.dataset}';\nDECLARE @d      DATE='@{pipeline().parameters.run_date}';\n\nINSERT INTO ops.run_log (run_id, stage, dataset, ingest_date, status, started_at_utc)\nSELECT @run_id, @stage, @ds, @d, 'STARTED', SYSUTCDATETIME();\n",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "DimVendor_Upsert",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "DECLARE @d DATE = '@{pipeline().parameters.run_date}';\n\n;WITH src AS (\n  SELECT DISTINCT UPPER(LTRIM(RTRIM(vendor_code))) AS vendor_code_nk\n  FROM core.trip_clean\n  WHERE ingest_date = @d\n    AND vendor_code IS NOT NULL AND LTRIM(RTRIM(vendor_code)) <> ''\n)\nMERGE mdl.dim_vendor AS tgt\nUSING src AS s\n  ON tgt.vendor_code_nk = s.vendor_code_nk\nWHEN NOT MATCHED BY TARGET THEN\n  INSERT (vendor_code_nk, active_flag, valid_from_utc)\n  SELECT s.vendor_code_nk, 1, SYSUTCDATETIME();\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"dataset": {
+				"type": "string",
+				"defaultValue": "nyctaxi_yellow"
+			},
+			"run_date": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}
