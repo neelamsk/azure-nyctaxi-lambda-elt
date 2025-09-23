@@ -2,12 +2,18 @@
 
 > **TL;DR**: This project implements an **ADF-first batch ELT** that lands Parquet to **ADLS Gen2 (raw)**, loads **idempotently** to **Synapse (staging)**, transforms to **Core**, and then builds a **Modeling (Star) layer** with DQ gates, run logging, observability, and a single **orchestrator** pipeline. Optional governance via **Microsoft Purview** shows lineage *(raw → stg → core → mdl)*.
 
+![Architecture (Dev)](docs/img/arch-dev.jpg)
+
+
 ---
 
 ## 1) Source & Landing (raw)
 
 - Land source files **as-is** to `adls/raw/<dataset>/ingest_date=YYYY-MM-DD/`.
 - Keep raw immutable for backfills/replay and full lineage.
+
+![Raw files in ADLS](docs/img/adls-raw-listing.png)
+
 
 ---
 
@@ -43,6 +49,8 @@
 
 - Orchestrator: **`pl_daily_nyctaxi`** runs **raw → stg → core → mdl** with the **same** `run_date`.
 - Single daily trigger (only on orchestrator). Backfill by calling the orchestrator with date lists.
+![Orchestrator success](docs/img/orchestrator_success.png)
+
 ![Orchestrator runs table](docs/img/orchestrator_runs_table.png)
 
 
@@ -80,6 +88,9 @@
 - **Policies:** enable Defender for Cloud recommendations; enforce “no public access” and “https only” policies; tag resources (env, owner, cost-center).
 - **RBAC hygiene:** least privilege roles; break-glass procedure documented.
 - **Purview governance:** glossary terms for conformed dims; (if PII exists later) apply classifications and masking policies.
+
+![RBAC: ADF MI on Storage](docs/img/storage-rbac-adf-mi.png)
+
 
 ---
 
