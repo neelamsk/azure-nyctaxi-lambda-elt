@@ -43,6 +43,8 @@
 
 **Docs:** `sql/docs/README_modeling.md`
 
+![BI overview (DirectQuery on mdl.vw_fact_trip_bi)](docs/img/pbi_overview.png)
+
 ---
 
 ## 5) Orchestration & Backfill
