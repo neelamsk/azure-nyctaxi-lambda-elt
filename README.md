@@ -43,7 +43,6 @@
 
 **Docs:** `sql/docs/README_modeling.md`
 
-![BI overview (DirectQuery on mdl.vw_fact_trip_bi)](docs/img/pbi_overview.png)
 
 ---
 
@@ -147,13 +146,14 @@ README.md                  # ← this file
 
 ---
 
-## 11) Roadmap (next phase — BI & Consumption)
+## 11) BI & Consumption
 
 - Power BI model on `mdl.vw_fact_trip_bi` (DirectQuery)  
 - Consistent KPI measures (Tip %, Avg Fare/km, Night Ride %)  
 - Semantic model + row-level security (if needed)  
 - Performance tuning at scale (partitioning, CTAS load patterns)  
 - Cost hygiene: auto-pause/resume SQL pool; Log Analytics dashboards
+![BI overview (DirectQuery on mdl.vw_fact_trip_bi)](docs/img/pbi_overview.png)
 
 ---
 
@@ -169,4 +169,3 @@ Place images in `docs/img/` and reference them from this README.
 - **Raw resource set** (grouped `ingest_date=` partitions) — `docs/img/purview_raw_resource_set.png`
 - **BI visual** (Trips by date; matrix by payment type × borough) — `docs/img/pbi_overview.png`
 
-*(Optional)* annotate key boxes/arrows so a reviewer understands each screenshot at a glance.
