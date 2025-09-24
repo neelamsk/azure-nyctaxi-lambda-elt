@@ -93,7 +93,7 @@ resource eh 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = {
 resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-01' = {
   name: consumerGroupName
   parent: eh
-}
+} 
 
 // ---------- Stream Analytics job ----------
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' = {
