@@ -143,7 +143,7 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-0
       }
     }
     serialization: { type: 'Json', properties: { encoding: 'UTF8', format: 'LineSeparated' } }
-  }
+  } 
 }
 
 resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2020-03-01' = {
