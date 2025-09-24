@@ -1,3 +1,4 @@
+@minLength(6)
 @description('Short prefix for names, e.g. nyctaxi')
 param prefix string = 'nyctaxi'
 
@@ -10,10 +11,10 @@ param ehPartitions int = 4
 @description('Late/OOO tolerance (seconds), e.g. 900 = 15 min')
 param lateSeconds int = 900
 
-// ---------- Names we reuse ----------
-var ehnsName           = 'ehns-${prefix}'
-var eventHubName       = 'eh-${prefix}-trip'
-var consumerGroupName  = 'asa'
+// ---------- Names reused ----------
+var ehnsName          = 'ehns-${prefix}'
+var eventHubName      = 'eh-${prefix}-trip'
+var consumerGroupName = 'asa'
 
 // ---------- Storage (ADLS Gen2) ----------
 resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -95,15 +96,15 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
   parent: eh
 }
 
-// ---------- Stream Analytics job ---------- 
-resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' = {
+// ---------- Stream Analytics (stable API) ----------
+resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' = {
   name: 'asa-${prefix}-trip'
   location: location
   identity: {
     type: 'SystemAssigned'
   }
   sku: {
-    name: 'Standard'
+    name: 'Standard'   // REQUIRED
   }
   properties: {
     jobType: 'Cloud'
@@ -113,12 +114,11 @@ resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' = {
     eventsOutOfOrderMaxDelayInSeconds: lateSeconds
     eventsLateArrivalMaxDelayInSeconds: lateSeconds
     outputErrorPolicy: 'Stop'
-    contentStoragePolicy: 'SystemAccount'
   }
 }
 
-// ASA input (Event Hubs)
-resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-preview' = {
+// ASA input (Event Hubs) - stable API
+resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2020-03-01' = {
   name: 'trip_in'
   parent: asa
   properties: {
@@ -133,18 +133,16 @@ resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-pre
       type: 'Microsoft.ServiceBus/EventHub'
       properties: {
         serviceBusNamespace: ehnsName
-        eventHubName: eventHubName
-        consumerGroupName: consumerGroupName
+        eventHubName:       eventHubName
+        consumerGroupName:  consumerGroupName
         authenticationMode: 'Msi'
       }
     }
-    // Event time field (JSON path)
-    eventTimestampPath: '$.pickup_ts'
   }
 }
 
-// ASA output: BRONZE (Blob JSON)
-resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
+// ASA outputs (Blob JSON) - stable API
+resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-01' = {
   name: 'bronze_out'
   parent: asa
   properties: {
@@ -171,8 +169,7 @@ resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
   }
 }
 
-// ASA output: SILVER (Blob JSON)
-resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
+resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-01' = {
   name: 'silver_out'
   parent: asa
   properties: {
@@ -199,29 +196,31 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
   }
 }
 
-// ASA transformation (query)
-resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2021-10-01-preview' = {
+// ASA transformation (continuous query) - stable API
+resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2020-03-01' = {
   name: 't1'
   parent: asa
   properties: {
     streamingUnits: 3
     query: '''
-      -- Pass-through everything into BRONZE
+      -- Pass-through everything into BRONZE, using event-time from pickup_ts
       SELECT * INTO [bronze_out]
-      FROM [trip_in]; 
+      FROM [trip_in] input
+      TIMESTAMP BY CAST(input.pickup_ts AS datetime);
 
-      -- Minimal clean/projection into SILVER (refine later)
+      -- Minimal clean/projection into SILVER (refine with DQ/dedup later)
       SELECT
-        CAST(input.event_id AS NVARCHAR(128)) AS event_id,
-        CAST(input.pickup_ts AS datetime)     AS pickup_ts,
-        CAST(input.dropoff_ts AS datetime)    AS dropoff_ts,
-        CAST(input.pickup_zone AS NVARCHAR(64)) AS pickup_zone,
-        CAST(input.vendor_id AS NVARCHAR(16)) AS vendor_id,
+        CAST(input.event_id AS NVARCHAR(128))    AS event_id,
+        CAST(input.pickup_ts AS datetime)        AS pickup_ts,
+        CAST(input.dropoff_ts AS datetime)       AS dropoff_ts,
+        CAST(input.pickup_zone AS NVARCHAR(64))  AS pickup_zone,
+        CAST(input.vendor_id AS NVARCHAR(16))    AS vendor_id,
         CAST(input.payment_type AS NVARCHAR(16)) AS payment_type,
-        TRY_CAST(input.fare_amount AS float)  AS fare_amount,
-        TRY_CAST(input.trip_distance AS float) AS trip_distance
+        TRY_CAST(input.fare_amount AS float)     AS fare_amount,
+        TRY_CAST(input.trip_distance AS float)   AS trip_distance
       INTO [silver_out]
       FROM [trip_in] input
+      TIMESTAMP BY CAST(input.pickup_ts AS datetime)
       WHERE input.pickup_ts IS NOT NULL
         AND input.pickup_zone IS NOT NULL
         AND TRY_CAST(input.fare_amount AS float) > 0;
