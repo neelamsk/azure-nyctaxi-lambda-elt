@@ -47,7 +47,14 @@ jobs:
         uses: azure/cli@v2
         with:
           inlineScript: |
-            az bicep install --upgrade
+            set -e
+            # Install if missing (no flags)
+            if ! az bicep version >/dev/null 2>&1; then
+              az bicep install
+            fi
+            # (Optional) upgrade to latest
+            az bicep upgrade || true
+      
             az bicep version
             az deployment group validate \
               -g "$RESOURCE_GROUP" \

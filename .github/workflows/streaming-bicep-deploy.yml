@@ -45,14 +45,21 @@ jobs:
       - name: Validate (debug)
         uses: azure/cli@v2
         with:
-          inlineScript: |
-            az bicep install --upgrade
-            az bicep version
-            az deployment group validate \
-              -g "$RESOURCE_GROUP" \
-              -f "$TEMPLATE_FILE" \
-              -p @"$PARAM_FILE" \
-              --only-show-errors
+            inlineScript: |
+                set -e
+                # Install if missing (no flags)
+                if ! az bicep version >/dev/null 2>&1; then
+                az bicep install
+                fi
+                # (Optional) upgrade to latest
+                az bicep upgrade || true
+        
+                az bicep version
+                az deployment group validate \
+                -g "$RESOURCE_GROUP" \
+                -f "$TEMPLATE_FILE" \
+                -p @"$PARAM_FILE" \
+                --only-show-errors
 
       - name: Ensure RG exists
         uses: azure/cli@v2
