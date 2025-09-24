@@ -208,7 +208,7 @@ resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2
     query: '''
       -- Pass-through everything into BRONZE
       SELECT * INTO [bronze_out]
-      FROM [trip_in];
+      FROM [trip_in]; 
 
       -- Minimal clean/projection into SILVER (refine later)
       SELECT
