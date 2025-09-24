@@ -1,0 +1,11 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "prefix": { "value": "nyctaxi" },
+      "location": { "value": "canadacentral" },
+      "ehPartitions": { "value": 4 },
+      "lateSeconds": { "value": 900 }
+    }
+  }
+  
