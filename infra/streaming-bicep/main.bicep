@@ -95,7 +95,7 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
   parent: eh
 }
 
-// ---------- Stream Analytics job ----------
+// ---------- Stream Analytics job ---------- 
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' = {
   name: 'asa-${prefix}-trip'
   location: location
