@@ -11,7 +11,7 @@ param ehPartitions int = 4
 @description('Late/OOO tolerance (seconds), e.g. 900 = 15 min')
 param lateSeconds int = 900
 
-// ---------- Names reused ----------
+// ---------- Names ----------
 var ehnsName          = 'ehns-${prefix}'
 var eventHubName      = 'eh-${prefix}-trip'
 var consumerGroupName = 'asa'
@@ -21,9 +21,7 @@ resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: 'st${prefix}stream'
   location: location
   kind: 'StorageV2'
-  sku: {
-    name: 'Standard_LRS'
-  }
+  sku: { name: 'Standard_LRS' }
   properties: {
     isHnsEnabled: true
     allowBlobPublicAccess: false
@@ -36,10 +34,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
   name: 'default'
   parent: sa
   properties: {
-    deleteRetentionPolicy: {
-      enabled: true
-      days: 30
-    }
+    deleteRetentionPolicy: { enabled: true, days: 30 }
   }
 }
 
@@ -48,19 +43,16 @@ resource bronze 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-
   parent: blobService
   properties: {}
 }
-
 resource silver 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   name: 'silver'
   parent: blobService
   properties: {}
 }
-
 resource gold 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   name: 'gold'
   parent: blobService
   properties: {}
 }
-
 resource quarantine 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   name: 'quarantine'
   parent: blobService
@@ -71,24 +63,14 @@ resource quarantine 'Microsoft.Storage/storageAccounts/blobServices/containers@2
 resource ehns 'Microsoft.EventHub/namespaces@2024-01-01' = {
   name: ehnsName
   location: location
-  sku: {
-    name: 'Standard'
-    tier: 'Standard'
-    capacity: 1
-  }
-  properties: {
-    isAutoInflateEnabled: true
-    maximumThroughputUnits: 4
-  }
+  sku: { name: 'Standard', tier: 'Standard', capacity: 1 }
+  properties: { isAutoInflateEnabled: true, maximumThroughputUnits: 4 }
 }
 
 resource eh 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = {
   name: eventHubName
   parent: ehns
-  properties: {
-    partitionCount: ehPartitions
-    messageRetentionInDays: 7
-  }
+  properties: { partitionCount: ehPartitions, messageRetentionInDays: 7 }
 }
 
 resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-01' = {
@@ -96,39 +78,24 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
   parent: eh
 }
 
-// ---------- Stream Analytics (stable API) ----------
+// ---------- Stream Analytics (ALL at 2020-03-01) ----------
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' = {
   name: 'asa-${prefix}-trip'
   location: location
-  identity: {
-    type: 'SystemAssigned'
-  }
-  sku: {
-    name: 'Standard'   // REQUIRED
-  }
+  identity: { type: 'SystemAssigned' }
+  sku: { name: 'Standard' }           // REQUIRED; keep minimal schema
   properties: {
     jobType: 'Cloud'
-    dataLocale: 'en-US'
-    compatibilityLevel: '1.2'
-    eventsOutOfOrderPolicy: 'Adjust'
-    eventsOutOfOrderMaxDelayInSeconds: lateSeconds
-    eventsLateArrivalMaxDelayInSeconds: lateSeconds
-    outputErrorPolicy: 'Stop'
+    // keep the rest minimal for now; we’ll add optional props after create succeeds
   }
 }
 
-// ASA input (Event Hubs) - stable API
 resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2020-03-01' = {
   name: 'trip_in'
   parent: asa
   properties: {
     type: 'Stream'
-    serialization: {
-      type: 'Json'
-      properties: {
-        encoding: 'UTF8'
-      }
-    }
+    serialization: { type: 'Json', properties: { encoding: 'UTF8' } }
     datasource: {
       type: 'Microsoft.ServiceBus/EventHub'
       properties: {
@@ -141,7 +108,6 @@ resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2020-03-01' = 
   }
 }
 
-// ASA outputs (Blob JSON) - stable API
 resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-01' = {
   name: 'bronze_out'
   parent: asa
@@ -149,9 +115,7 @@ resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-0
     datasource: {
       type: 'Microsoft.Storage/Blob'
       properties: {
-        storageAccounts: [
-          { accountName: sa.name }
-        ]
+        storageAccounts: [ { accountName: sa.name } ]
         container: 'bronze'
         pathPattern: '${prefix}/trip/ingest_date={date}/event_hour={time}'
         dateFormat: 'yyyy-MM-dd'
@@ -159,13 +123,7 @@ resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-0
         authenticationMode: 'Msi'
       }
     }
-    serialization: {
-      type: 'Json'
-      properties: {
-        encoding: 'UTF8'
-        format: 'LineSeparated'
-      }
-    }
+    serialization: { type: 'Json', properties: { encoding: 'UTF8', format: 'LineSeparated' } }
   }
 }
 
@@ -176,9 +134,7 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-0
     datasource: {
       type: 'Microsoft.Storage/Blob'
       properties: {
-        storageAccounts: [
-          { accountName: sa.name }
-        ]
+        storageAccounts: [ { accountName: sa.name } ]
         container: 'silver'
         pathPattern: '${prefix}/trip/loaded_date={date}'
         dateFormat: 'yyyy-MM-dd'
@@ -186,29 +142,22 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-0
         authenticationMode: 'Msi'
       }
     }
-    serialization: {
-      type: 'Json'
-      properties: {
-        encoding: 'UTF8'
-        format: 'LineSeparated'
-      }
-    }
+    serialization: { type: 'Json', properties: { encoding: 'UTF8', format: 'LineSeparated' } }
   }
 }
 
-// ASA transformation (continuous query) - stable API
 resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2020-03-01' = {
   name: 't1'
   parent: asa
   properties: {
     streamingUnits: 3
     query: '''
-      -- Pass-through everything into BRONZE, using event-time from pickup_ts
+      -- Pass-through to BRONZE using event-time from pickup_ts
       SELECT * INTO [bronze_out]
       FROM [trip_in] input
       TIMESTAMP BY CAST(input.pickup_ts AS datetime);
 
-      -- Minimal clean/projection into SILVER (refine with DQ/dedup later)
+      -- Minimal clean/projection to SILVER
       SELECT
         CAST(input.event_id AS NVARCHAR(128))    AS event_id,
         CAST(input.pickup_ts AS datetime)        AS pickup_ts,
@@ -231,7 +180,6 @@ resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2
 // ---------- RBAC for ASA Managed Identity ----------
 @description('Event Hubs Data Receiver role')
 var roleEhDataReceiver = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2b629674-e913-4c01-ae53-ef4638d8f975')
-
 @description('Storage Blob Data Contributor role')
 var roleBlobDataContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 
