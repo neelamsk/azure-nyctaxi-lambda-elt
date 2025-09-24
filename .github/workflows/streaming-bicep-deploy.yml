@@ -16,7 +16,7 @@ env:
 # Avoid overlapping deploys to the same RG
 concurrency:
   group: streaming-bicep-deploy
-  cancel-in-progress: false
+  cancel-in-progress: false 
 
 jobs:
   deploy:
@@ -40,6 +40,7 @@ jobs:
       - name: Deploy Bicep (incremental)
         uses: azure/arm-deploy@v2
         with:
+          scope: resourcegroup
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: ${{ env.TEMPLATE_FILE }}
