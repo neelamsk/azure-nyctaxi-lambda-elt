@@ -1,3 +1,4 @@
+
 name: streaming-bicep-deploy
 
 on:
@@ -5,6 +6,7 @@ on:
     branches: [ main ]
     paths:
       - 'infra/streaming-bicep/**'
+      - '.github/workflows/streaming-bicep-deploy.yml'
   workflow_dispatch:
 
 env:
@@ -13,25 +15,32 @@ env:
   TEMPLATE_FILE: infra/streaming-bicep/main.bicep
   PARAM_FILE: infra/streaming-bicep/params.dev.json
 
-# Avoid overlapping deploys to the same RG
 concurrency:
   group: streaming-bicep-deploy
-  cancel-in-progress: false 
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Optional: gate with an Environment to require a manual approval
-    environment: streaming-dev
+    permissions:
+      id-token: write
+      contents: read
+    environment: streaming-dev   # optional: add env approval in repo settings
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure login
+      - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Who am I (debug)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az account show -o table
 
       - name: Ensure RG exists
         uses: azure/cli@v2
@@ -42,10 +51,9 @@ jobs:
       - name: Deploy Bicep (incremental)
         uses: azure/arm-deploy@v2
         with:
-          scope: resourcegroup
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: ${{ env.TEMPLATE_FILE }}
           parameters: ${{ env.PARAM_FILE }}
           deploymentName: stream-deploy-${{ github.run_id }}
-          # (Optional) deploymentMode: Complete|Incremental (default is Incremental)
+          # deploymentMode: Incremental   # default; leave as-is
