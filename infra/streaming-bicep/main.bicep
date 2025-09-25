@@ -8,9 +8,6 @@ param location string = 'eastus2'
 @description('Event Hub partitions')
 param ehPartitions int = 4
 
-@description('Late/OOO tolerance (seconds), e.g. 900 = 15 min')
-param lateSeconds int = 900
-
 // ---------- Names ----------
 var ehnsName          = 'ehns-${prefix}'
 var eventHubName      = 'eh-${prefix}-trip'
@@ -79,32 +76,14 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
 }
 
 // ---------- Stream Analytics job ----------
-// resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' {
-//   name: 'asa-${prefix}-trip' 
-//   location: location
-//   identity: {
-//     type: 'SystemAssigned'
-//   }
-//   sku: {
-//     name: 'Standard'
-//   }
-//   properties: {
-//     jobType: 'Cloud'
-//     dataLocale: 'en-US'
-//     compatibilityLevel: '1.2'
-//     eventsOutOfOrderPolicy: 'Adjust'
-//     eventsOutOfOrderMaxDelayInSeconds: lateSeconds
-//     eventsLateArrivalMaxDelayInSeconds: lateSeconds
-//     outputErrorPolicy: 'Stop'
-//     contentStoragePolicy: 'SystemAccount'
-//   }
-// } 
-
+// NOTE: The ASA job is created outside of Bicep (via REST in the workflow).
+//       We only *reference* it here as an existing resource so we can
+//       attach inputs/outputs/transformation and assign RBAC.
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' existing = {
   name: 'asa-${prefix}-trip'
 }
 
-
+// ---------- ASA Input (Event Hub) ----------
 resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-preview' = {
   name: 'trip_in'
   parent: asa
@@ -126,7 +105,7 @@ resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-pre
   }
 }
 
-
+// ---------- ASA Outputs (Blob) ----------
 resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
   name: 'bronze_out'
   parent: asa
@@ -148,7 +127,6 @@ resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
     }
   }
 }
-
 
 resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
   name: 'silver_out'
@@ -172,6 +150,7 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
   }
 }
 
+// ---------- ASA Transformation ----------
 resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2021-10-01-preview' = {
   name: 't1'
   parent: asa
@@ -203,7 +182,7 @@ resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2
   }
 }
 
-// ---------- RBAC for ASA Managed Identity -----------
+// ---------- RBAC for ASA Managed Identity ----------
 @description('Event Hubs Data Receiver role')
 var roleEhDataReceiver = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2b629674-e913-4c01-ae53-ef4638d8f975')
 @description('Storage Blob Data Contributor role')
