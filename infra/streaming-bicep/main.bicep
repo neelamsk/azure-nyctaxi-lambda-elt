@@ -79,25 +79,29 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
 }
 
 // ---------- Stream Analytics job ----------
+// resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' {
+//   name: 'asa-${prefix}-trip' 
+//   location: location
+//   identity: {
+//     type: 'SystemAssigned'
+//   }
+//   sku: {
+//     name: 'Standard'
+//   }
+//   properties: {
+//     jobType: 'Cloud'
+//     dataLocale: 'en-US'
+//     compatibilityLevel: '1.2'
+//     eventsOutOfOrderPolicy: 'Adjust'
+//     eventsOutOfOrderMaxDelayInSeconds: lateSeconds
+//     eventsLateArrivalMaxDelayInSeconds: lateSeconds
+//     outputErrorPolicy: 'Stop'
+//     contentStoragePolicy: 'SystemAccount'
+//   }
+// }
+
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' existing = {
-  name: 'asa-${prefix}-trip' 
-  location: location
-  identity: {
-    type: 'SystemAssigned'
-  }
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    jobType: 'Cloud'
-    dataLocale: 'en-US'
-    compatibilityLevel: '1.2'
-    eventsOutOfOrderPolicy: 'Adjust'
-    eventsOutOfOrderMaxDelayInSeconds: lateSeconds
-    eventsLateArrivalMaxDelayInSeconds: lateSeconds
-    outputErrorPolicy: 'Stop'
-    contentStoragePolicy: 'SystemAccount'
-  }
+  name: 'asa-${prefix}-trip'
 }
 
 
