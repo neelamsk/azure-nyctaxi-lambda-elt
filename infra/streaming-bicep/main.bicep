@@ -1,209 +1,147 @@
-@minLength(6)
-@description('Short prefix for names, e.g. nyctaxi')
-param prefix string = 'nyctaxi'
+name: streaming-bicep-deploy
 
-@description('Azure region')
-param location string = 'eastus2'
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/streaming-bicep/**'
+      - '.github/workflows/streaming-bicep-deploy.yml'
+  workflow_dispatch:
 
-@description('Event Hub partitions')
-param ehPartitions int = 4
+env:
+  RESOURCE_GROUP: rg-nyctaxi-stream
+  LOCATION: eastus2
+  TEMPLATE_FILE: infra/streaming-bicep/main.bicep
+  PARAM_FILE: infra/streaming-bicep/params.dev.json
+  ASA_JOB_NAME: asa-nyctaxi-trip
+  DATA_LOCALE: en-US
+  LATE_SECONDS: 900
+  COMPAT_LEVEL: "1.2"
+  # expose subscription id for REST calls and az cli
+  SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-// ---------- Names ----------
-var ehnsName          = 'ehns-${prefix}'
-var eventHubName      = 'eh-${prefix}-trip'
-var consumerGroupName = 'asa'
+concurrency:
+  group: streaming-bicep-deploy
+  cancel-in-progress: false
 
-// ---------- Storage (ADLS Gen2) ----------
-resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: 'st${prefix}stream'
-  location: location
-  kind: 'StorageV2'
-  sku: { name: 'Standard_LRS' }
-  properties: {
-    isHnsEnabled: true
-    allowBlobPublicAccess: false
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
-  }
-}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: streaming-dev
 
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
-  name: 'default'
-  parent: sa
-  properties: {
-    deleteRetentionPolicy: { enabled: true, days: 30 }
-  }
-}
+    steps:
+      - uses: actions/checkout@v4
 
-resource bronze 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  name: 'bronze'
-  parent: blobService
-  properties: {}
-}
-resource silver 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  name: 'silver'
-  parent: blobService
-  properties: {}
-}
-resource gold 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  name: 'gold'
-  parent: blobService
-  properties: {}
-}
-resource quarantine 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  name: 'quarantine'
-  parent: blobService
-  properties: {}
-}
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-// ---------- Event Hubs ----------
-resource ehns 'Microsoft.EventHub/namespaces@2024-01-01' = {
-  name: ehnsName
-  location: location
-  sku: { name: 'Standard', tier: 'Standard', capacity: 1 }
-  properties: { isAutoInflateEnabled: true, maximumThroughputUnits: 4 }
-}
+      - name: Who am I (debug)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az account show -o table
 
-resource eh 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = {
-  name: eventHubName
-  parent: ehns
-  properties: { partitionCount: ehPartitions, messageRetentionInDays: 7 }
-}
+      - name: Ensure RG exists
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az group create -n "$RESOURCE_GROUP" -l "$LOCATION" -o none
 
-resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-01' = {
-  name: consumerGroupName
-  parent: eh
-}
+      # If the job exists from a previous run, delete it so the create is clean
+      - name: Delete existing ASA job if present
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+            if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
+              echo "Existing ASA job found; deleting..."
+              az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs
+              for i in {1..30}; do
+                if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
+                  echo "Waiting for deletion... ($i)"; sleep 5
+                else
+                  echo "ASA job deleted."; break
+                fi
+              done
+            else
+              echo "No existing ASA job."
+            fi
 
-// ---------- Stream Analytics job ----------
-// NOTE: The ASA job is created outside of Bicep (via REST in the workflow).
-//       We only *reference* it here as an existing resource so we can
-//       attach inputs/outputs/transformation and assign RBAC.
-resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' existing = {
-  name: 'asa-${prefix}-trip'
-}
+      # Create ASA job via ARM REST (api-version 2021-10-01-preview)
+      - name: Create ASA job (REST)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
 
-// ---------- ASA Input (Event Hub) ----------
-resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-preview' = {
-  name: 'trip_in'
-  parent: asa
-  properties: {
-    type: 'Stream'
-    serialization: {
-      type: 'Json'
-      properties: { encoding: 'UTF8' }
-    }
-    datasource: {
-      type: 'Microsoft.ServiceBus/EventHub'
-      properties: {
-        serviceBusNamespace: ehnsName
-        eventHubName:       eventHubName
-        consumerGroupName:  consumerGroupName
-        authenticationMode: 'Msi'
-      }
-    }
-  }
-}
+            URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME?api-version=2021-10-01-preview"
 
-// ---------- ASA Outputs (Blob) ----------
-resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
-  name: 'bronze_out'
-  parent: asa
-  properties: {
-    datasource: {
-      type: 'Microsoft.Storage/Blob'
-      properties: {
-        storageAccounts: [ { accountName: sa.name } ]
-        container: 'bronze'
-        pathPattern: '${prefix}/trip/ingest_date={date}/event_hour={time}'
-        dateFormat: 'yyyy-MM-dd'
-        timeFormat: 'HH'
-        authenticationMode: 'Msi'
-      }
-    }
-    serialization: {
-      type: 'Json'
-      properties: { encoding: 'UTF8', format: 'LineSeparated' }
-    }
-  }
-}
+            cat >/tmp/asa-job.json <<EOF
+            {
+              "location": "$LOCATION",
+              "identity": { "type": "SystemAssigned" },
+              "sku": { "name": "Standard" },
+              "properties": {
+                "jobType": "Cloud",
+                "eventsOutOfOrderPolicy": "Adjust",
+                "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
+                "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
+                "dataLocale": "$DATA_LOCALE",
+                "outputErrorPolicy": "Stop",
+                "compatibilityLevel": "$COMPAT_LEVEL"
+              }
+            }
+            EOF
 
-resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
-  name: 'silver_out'
-  parent: asa
-  properties: {
-    datasource: {
-      type: 'Microsoft.Storage/Blob'
-      properties: {
-        storageAccounts: [ { accountName: sa.name } ]
-        container: 'silver'
-        pathPattern: '${prefix}/trip/loaded_date={date}'
-        dateFormat: 'yyyy-MM-dd'
-        timeFormat: 'HH'
-        authenticationMode: 'Msi'
-      }
-    }
-    serialization: {
-      type: 'Json'
-      properties: { encoding: 'UTF8', format: 'LineSeparated' }
-    }
-  }
-}
+            echo "Creating ASA job $ASA_JOB_NAME ..."
+            az rest --method put --uri "$URI" --body @/tmp/asa-job.json --only-show-errors -o none
+            echo "ASA job created."
 
-// ---------- ASA Transformation ----------
-resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2021-10-01-preview' = {
-  name: 't1'
-  parent: asa
-  properties: {
-    streamingUnits: 3
-    query: '''
-      -- Pass-through to BRONZE using event-time from pickup_ts
-      SELECT * INTO [bronze_out]
-      FROM [trip_in] input
-      TIMESTAMP BY CAST(input.pickup_ts AS datetime);
+      # Wait for the system-assigned identity to be ready so RBAC in Bicep succeeds
+      - name: Wait for ASA managed identity (principalId)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+            for i in {1..30}; do
+              PID=$(az resource show \
+                -g "$RESOURCE_GROUP" \
+                -n "$ASA_JOB_NAME" \
+                --resource-type Microsoft.StreamAnalytics/streamingjobs \
+                --query "identity.principalId" -o tsv || true)
+              if [ -n "$PID" ] && [ "$PID" != "None" ]; then
+                echo "principalId ready: $PID"; break
+              fi
+              echo "Waiting for principalId... ($i)"; sleep 5
+            done
 
-      -- Minimal clean/projection to SILVER
-      SELECT
-        CAST(input.event_id AS NVARCHAR(128))    AS event_id,
-        CAST(input.pickup_ts AS datetime)        AS pickup_ts,
-        CAST(input.dropoff_ts AS datetime)       AS dropoff_ts,
-        CAST(input.pickup_zone AS NVARCHAR(64))  AS pickup_zone,
-        CAST(input.vendor_id AS NVARCHAR(16))    AS vendor_id,
-        CAST(input.payment_type AS NVARCHAR(16)) AS payment_type,
-        TRY_CAST(input.fare_amount AS float)     AS fare_amount,
-        TRY_CAST(input.trip_distance AS float)   AS trip_distance
-      INTO [silver_out]
-      FROM [trip_in] input
-      TIMESTAMP BY CAST(input.pickup_ts AS datetime)
-      WHERE input.pickup_ts IS NOT NULL
-        AND input.pickup_zone IS NOT NULL
-        AND TRY_CAST(input.fare_amount AS float) > 0;
-    '''
-  }
-}
+      # Deploy with AZ CLI (avoid azure/arm-deploy validation bug)
+      - name: Deploy Bicep (az cli)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+            az deployment group create \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "stream-deploy-${GITHUB_RUN_ID}" \
+              --template-file "$TEMPLATE_FILE" \
+              --parameters @"$PARAM_FILE" \
+              --mode Incremental \
+              --only-show-errors
 
-// ---------- RBAC for ASA Managed Identity ----------
-@description('Event Hubs Data Receiver role')
-var roleEhDataReceiver = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2b629674-e913-4c01-ae53-ef4638d8f975')
-@description('Storage Blob Data Contributor role')
-var roleBlobDataContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
-
-resource rbacEh 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(eh.id, 'asa-mi-eh-read')
-  scope: eh
-  properties: {
-    roleDefinitionId: roleEhDataReceiver
-    principalId: asa.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource rbacSa 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(sa.id, 'asa-mi-blob-contrib')
-  scope: sa
-  properties: {
-    roleDefinitionId: roleBlobDataContributor
-    principalId: asa.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+      # Optional: stop ASA job after deploy to avoid runtime costs
+      - name: Stop ASA job (cost-safe)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+            az rest --method post \
+              --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME/stop?api-version=2021-10-01-preview" \
+              -o none || true
