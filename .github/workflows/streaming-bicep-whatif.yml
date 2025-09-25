@@ -13,6 +13,7 @@ env:
   LOCATION: eastus2
   TEMPLATE_FILE: infra/streaming-bicep/main.bicep
   PARAM_FILE: infra/streaming-bicep/params.dev.json
+  ASA_JOB_NAME: asa-nyctaxi-trip
 
 concurrency:
   group: streaming-bicep-whatif-${{ github.ref }}
@@ -22,8 +23,9 @@ jobs:
   what-if:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write     # required for OIDC
+      id-token: write
       contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -40,7 +42,7 @@ jobs:
           inlineScript: |
             az account show -o table
 
-      # Compile only (avoid az deployment validate to prevent "response was already consumed")
+      # Optional: compile to JSON just to surface any Bicep syntax issues early
       - name: Compile Bicep (debug)
         uses: azure/cli@v2
         with:
@@ -48,16 +50,31 @@ jobs:
             set -e
             az bicep install || true
             az bicep version
-            # Write compiled ARM to /tmp/main.json
             az bicep build --file "$TEMPLATE_FILE" --stdout > /tmp/main.json
             echo "Bicep compiled successfully."
-
 
       - name: Ensure RG exists
         uses: azure/cli@v2
         with:
           inlineScript: |
-            az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
+            az group create -n "$RESOURCE_GROUP" -l "$LOCATION" -o none
+
+      # Get ASA principalId if the job exists; otherwise use a dummy GUID for what-if
+      - name: Get ASA principalId (if exists)
+        id: get_asa_pid
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+            DEFAULT_PID="00000000-0000-0000-0000-000000000000"
+            if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
+              PID=$(az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs --query "identity.principalId" -o tsv || true)
+              if [ -z "$PID" ] || [ "$PID" = "None" ]; then PID="$DEFAULT_PID"; fi
+            else
+              PID="$DEFAULT_PID"
+            fi
+            echo "pid=$PID" >> "$GITHUB_OUTPUT"
+            echo "Using asaPrincipalId: $PID"
 
       - name: Bicep What-If
         uses: azure/arm-deploy@v2
@@ -66,7 +83,9 @@ jobs:
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: ${{ env.TEMPLATE_FILE }}
-          parameters: ${{ env.PARAM_FILE }}
-          additionalArguments: --what-if
+          parameters: |
+            @${{ env.PARAM_FILE }}
+            asaPrincipalId=${{ steps.get_asa_pid.outputs.pid }}
+          additionalArguments: --what-if --only-show-errors
           deploymentName: pr-whatif-${{ github.run_id }}
           failOnStdErr: false
