@@ -98,7 +98,7 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
 //     outputErrorPolicy: 'Stop'
 //     contentStoragePolicy: 'SystemAccount'
 //   }
-// }
+// } 
 
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' existing = {
   name: 'asa-${prefix}-trip'
