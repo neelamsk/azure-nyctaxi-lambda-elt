@@ -86,7 +86,7 @@ resource raBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empt
   }
 }
 
-// Azure Event Hubs Data Receiver (ASA reads from EH)
+// Azure Event Hubs Data Receiver (ASA reads from EH) 
 @description('Assigns ASA MI rights to read from Event Hub.')
 resource raEhRecv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(asaPrincipalId)) {
   name: guid(eh.id, 'a638d3c7-ab3a-418d-83e6-5f17a39d4fde', asaPrincipalId)
