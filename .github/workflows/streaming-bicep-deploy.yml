@@ -15,10 +15,9 @@ env:
   PARAM_FILE: infra/streaming-bicep/params.dev.json
   COMPILED_JSON: infra/streaming-bicep/compiled.arm.json
   ASA_JOB_NAME: asa-nyctaxi-trip
-  # Used by ARM body below (tweak if you need different values)
   DATA_LOCALE: en-US
-  LATE_SECONDS: "900"
-  COMPAT_LEVEL: "1.2"
+  LATE_SECONDS: 900
+  COMPAT_LEVEL: 1.2
 
 concurrency:
   group: streaming-bicep-deploy
@@ -54,7 +53,6 @@ jobs:
           inlineScript: |
             az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
 
-      # Clean slate: delete an existing ASA job via generic ARM (no extension)
       - name: Delete existing ASA job if present (ARM)
         uses: azure/cli@v2
         with:
@@ -63,21 +61,17 @@ jobs:
             if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
               echo "Existing ASA job found; deleting..."
               az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs
-              # Wait until it’s really gone
               for i in {1..30}; do
                 if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
-                  echo "Waiting for deletion... ($i)"
-                  sleep 5
+                  echo "Waiting for deletion... ($i)"; sleep 5
                 else
-                  echo "ASA job deleted."
-                  break
+                  echo "ASA job deleted."; break
                 fi
               done
             else
               echo "No existing ASA job."
             fi
 
-      # Create the ASA job by calling the ARM REST API (sends sku explicitly)
       - name: Create ASA job (ARM via az rest)
         uses: azure/cli@v2
         env:
@@ -90,8 +84,8 @@ jobs:
             {
               "location": "$LOCATION",
               "identity": { "type": "SystemAssigned" },
-              "sku": { "name": "Standard" },
               "properties": {
+                "sku": { "name": "Standard" },
                 "jobType": "Cloud",
                 "eventsOutOfOrderPolicy": "Adjust",
                 "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
@@ -106,23 +100,19 @@ jobs:
             az rest --method put --uri "$URI" --body @/tmp/asa-job.json --output none
             echo "ASA job created."
 
-      # Wait for the MSI principal to exist (RBAC in ARM needs the AAD object)
       - name: Wait for ASA MSI principalId
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -e
-            for i in {1..36}; do  # up to ~3 minutes
+            for i in {1..36}; do
               PID=$(az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs --query identity.principalId -o tsv 2>/dev/null || true)
               if [ -n "$PID" ] && [ "$PID" != "None" ]; then
-                echo "MSI principalId ready: $PID"
-                break
+                echo "MSI principalId ready: $PID"; break
               fi
-              echo "Waiting for MSI principalId... ($i)"
-              sleep 5
+              echo "Waiting for MSI principalId... ($i)"; sleep 5
             done
 
-      # Build Bicep -> JSON and ensure the ASA job is NOT in the template
       - name: Compile Bicep to ARM JSON
         uses: azure/cli@v2
         with:
@@ -151,7 +141,6 @@ jobs:
             fi
             echo "OK: No streamingjobs resource found in compiled template."
 
-      # Deploy the rest (inputs/outputs/transformations, RBAC, EH, Storage, etc.)
       - name: Deploy compiled ARM template (incremental)
         uses: azure/arm-deploy@v2
         with:
@@ -163,7 +152,6 @@ jobs:
           deploymentName: stream-deploy-${{ github.run_id }}
           failOnStdErr: false
 
-      # Optional: stop the ASA job to avoid runtime charges (REST)
       - name: Stop ASA job (cost-safe)
         if: always()
         uses: azure/cli@v2
