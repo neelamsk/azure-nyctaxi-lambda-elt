@@ -52,8 +52,7 @@ resource saContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@
 }
 
 // ---- Event Hubs Namespace + Hub ----
-// (Type metadata may be missing in Bicep for this API => BCP081 warning; deploys fine.)
-resource ehNs 'Microsoft.EventHub/namespaces@2022-10-01' = {
+resource ehNs 'Microsoft.EventHub/namespaces@2024-01-01' = {
   name: eventHubNamespaceName
   location: location
   sku: {
@@ -64,7 +63,7 @@ resource ehNs 'Microsoft.EventHub/namespaces@2022-10-01' = {
   tags: tags
 }
 
-resource eh 'Microsoft.EventHub/namespaces/eventhubs@2022-10-01' = {
+resource eh 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = {
   name: eventHubName
   parent: ehNs
   properties: {
@@ -101,4 +100,4 @@ resource raEhRecv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!em
 // ---- Outputs ---- 
 output storageAccountId string = sa.id
 output eventHubId string = eh.id
-output blobContainerUrl string = 'https://${storageAccountName}.blob.core.windows.net/${saContainer.name}'
+output blobContainerUrl string = 'https://${storageAccountName}.blob.${environment().suffixes.storage}/${saContainer.name}'
