@@ -7,6 +7,11 @@ param eventHubNamespaceName string
 @description('Event Hub (topic) name.')
 param eventHubName string
 
+@description('Number of partitions for the Event Hub.')
+@minValue(1)
+@maxValue(32)
+param ehPartitions int = 2
+
 @description('Optional tags applied to all resources.')
 param tags object = {}
 
@@ -25,7 +30,6 @@ resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   kind: 'StorageV2'
   tags: tags
   properties: {
-    // Bicep warning fix: use supportsHttpsTrafficOnly (not enableHttpsTrafficOnly)
     supportsHttpsTrafficOnly: true
     publicNetworkAccess: 'Enabled'
     minimumTlsVersion: 'TLS1_2'
@@ -48,7 +52,7 @@ resource saContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@
 }
 
 // ---- Event Hubs Namespace + Hub ----
-// (Types are sometimes missing in the type provider for newer API versions; deployment still works.)
+// (Type metadata may be missing in Bicep for this API => BCP081 warning; deploys fine.)
 resource ehNs 'Microsoft.EventHub/namespaces@2022-10-01' = {
   name: eventHubNamespaceName
   location: location
@@ -61,10 +65,11 @@ resource ehNs 'Microsoft.EventHub/namespaces@2022-10-01' = {
 }
 
 resource eh 'Microsoft.EventHub/namespaces/eventhubs@2022-10-01' = {
-  name: '${ehNs.name}/${eventHubName}'
+  name: eventHubName
+  parent: ehNs
   properties: {
     messageRetentionInDays: 1
-    partitionCount: 2
+    partitionCount: ehPartitions
   }
 }
 
