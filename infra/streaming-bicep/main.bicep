@@ -15,10 +15,11 @@ param lateSeconds int = 900
 var ehnsName          = 'ehns-${prefix}'
 var eventHubName      = 'eh-${prefix}-trip'
 var consumerGroupName = 'asa'
+var saName            = toLower('st${prefix}stream')
 
 // ---------- Storage (ADLS Gen2) ----------
 resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: 'st${prefix}stream'
+  name: saName
   location: location
   kind: 'StorageV2'
   sku: { name: 'Standard_LRS' }
@@ -29,15 +30,12 @@ resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     supportsHttpsTrafficOnly: true
   }
 }
- 
+
 resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
   name: 'default'
   parent: sa
   properties: {
-    deleteRetentionPolicy: {
-      enabled: true
-      days: 30
-    }
+    deleteRetentionPolicy: { enabled: true, days: 30 }
   }
 }
 
@@ -66,38 +64,27 @@ resource quarantine 'Microsoft.Storage/storageAccounts/blobServices/containers@2
 resource ehns 'Microsoft.EventHub/namespaces@2024-01-01' = {
   name: ehnsName
   location: location
-  sku: {
-    name: 'Standard'
-    tier: 'Standard'
-    capacity: 1
-  }
-  properties: {
-    isAutoInflateEnabled: true
-    maximumThroughputUnits: 4
-  }
+  sku: { name: 'Standard', tier: 'Standard', capacity: 1 }
+  properties: { isAutoInflateEnabled: true, maximumThroughputUnits: 4 }
 }
 
 resource eh 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = {
   name: eventHubName
   parent: ehns
-  properties: {
-    partitionCount: ehPartitions
-    messageRetentionInDays: 7
-  }
+  properties: { partitionCount: ehPartitions, messageRetentionInDays: 7 }
 }
 
 resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-01' = {
   name: consumerGroupName
   parent: eh
-  properties: {}
 }
 
-// ---------- Stream Analytics job (existing) ----------
-resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' existing = {
+// ---------- Stream Analytics job ----------
+// We create the job via REST in the workflow, so reference it as existing here.
+resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' existing = {
   name: 'asa-${prefix}-trip'
 }
 
-// ---------- ASA input (Event Hub via MSI) ----------
 resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-preview' = {
   name: 'trip_in'
   parent: asa
@@ -105,23 +92,20 @@ resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-pre
     type: 'Stream'
     serialization: {
       type: 'Json'
-      properties: {
-        encoding: 'UTF8'
-      }
+      properties: { encoding: 'UTF8' }
     }
     datasource: {
       type: 'Microsoft.ServiceBus/EventHub'
       properties: {
         serviceBusNamespace: ehnsName
-        eventHubName: eventHubName
-        consumerGroupName: consumerGroupName
+        eventHubName:       eventHubName
+        consumerGroupName:  consumerGroupName
         authenticationMode: 'Msi'
       }
     }
   }
 }
 
-// ---------- ASA outputs (Blob via MSI) ----------
 resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
   name: 'bronze_out'
   parent: asa
@@ -129,9 +113,7 @@ resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
     datasource: {
       type: 'Microsoft.Storage/Blob'
       properties: {
-        storageAccounts: [
-          { accountName: sa.name }
-        ]
+        storageAccounts: [ { accountName: sa.name } ]
         container: 'bronze'
         pathPattern: '${prefix}/trip/ingest_date={date}/event_hour={time}'
         dateFormat: 'yyyy-MM-dd'
@@ -141,10 +123,7 @@ resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
     }
     serialization: {
       type: 'Json'
-      properties: {
-        encoding: 'UTF8'
-        format: 'LineSeparated'
-      }
+      properties: { encoding: 'UTF8', format: 'LineSeparated' }
     }
   }
 }
@@ -156,9 +135,7 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
     datasource: {
       type: 'Microsoft.Storage/Blob'
       properties: {
-        storageAccounts: [
-          { accountName: sa.name }
-        ]
+        storageAccounts: [ { accountName: sa.name } ]
         container: 'silver'
         pathPattern: '${prefix}/trip/loaded_date={date}'
         dateFormat: 'yyyy-MM-dd'
@@ -168,15 +145,11 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-0
     }
     serialization: {
       type: 'Json'
-      properties: {
-        encoding: 'UTF8'
-        format: 'LineSeparated'
-      }
+      properties: { encoding: 'UTF8', format: 'LineSeparated' }
     }
   }
 }
 
-// ---------- ASA transformation ----------
 resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2021-10-01-preview' = {
   name: 't1'
   parent: asa
@@ -208,12 +181,15 @@ resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2
   }
 }
 
-// ---------- RBAC for ASA Managed Identity ----------
-var roleEhDataReceiver      = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2b629674-e913-4c01-ae53-ef4638d8f975')
+// ---------- RBAC for ASA Managed Identity -----------
+@description('Event Hubs Data Receiver role')
+var roleEhDataReceiver = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2b629674-e913-4c01-ae53-ef4638d8f975')
+@description('Storage Blob Data Contributor role')
 var roleBlobDataContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 
+// IMPORTANT: include principalId in the GUID seed so we don't try to "update" an immutable assignment
 resource rbacEh 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(eh.id, 'asa-mi-eh-read')
+  name: guid(eh.id, 'asa-mi-eh-read', string(asa.identity.principalId))
   scope: eh
   properties: {
     roleDefinitionId: roleEhDataReceiver
@@ -223,7 +199,7 @@ resource rbacEh 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource rbacSa 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(sa.id, 'asa-mi-blob-contrib')
+  name: guid(sa.id, 'asa-mi-blob-contrib', string(asa.identity.principalId))
   scope: sa
   properties: {
     roleDefinitionId: roleBlobDataContributor
@@ -231,3 +207,8 @@ resource rbacSa 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     principalType: 'ServicePrincipal'
   }
 }
+
+// --------- Useful outputs ----------
+output storageAccountName string = sa.name
+output eventHubNamespace  string = ehns.name
+output eventHubName       string = eh.name
