@@ -98,7 +98,7 @@ resource raEhRecv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!em
   }
 }
 
-// ---- Outputs ----
+// ---- Outputs ---- 
 output storageAccountId string = sa.id
 output eventHubId string = eh.id
 output blobContainerUrl string = 'https://${storageAccountName}.blob.core.windows.net/${saContainer.name}'
