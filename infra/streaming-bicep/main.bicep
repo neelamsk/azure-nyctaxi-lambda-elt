@@ -192,7 +192,7 @@ resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2
   }
 }
 
-// ---------- RBAC for ASA Managed Identity ----------
+// ---------- RBAC for ASA Managed Identity -----------
 @description('Event Hubs Data Receiver role')
 var roleEhDataReceiver = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2b629674-e913-4c01-ae53-ef4638d8f975')
 @description('Storage Blob Data Contributor role')
