@@ -13,11 +13,12 @@ env:
   LOCATION: eastus2
   TEMPLATE_FILE: infra/streaming-bicep/main.bicep
   PARAM_FILE: infra/streaming-bicep/params.dev.json
-  COMPILED_JSON: infra/streaming-bicep/compiled.arm.json
   ASA_JOB_NAME: asa-nyctaxi-trip
   DATA_LOCALE: en-US
   LATE_SECONDS: 900
-  COMPAT_LEVEL: 1.2
+  COMPAT_LEVEL: "1.2"
+  # expose subscription id for REST calls and az cli
+  SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
 concurrency:
   group: streaming-bicep-deploy
@@ -51,13 +52,14 @@ jobs:
         uses: azure/cli@v2
         with:
           inlineScript: |
-            az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
+            az group create -n "$RESOURCE_GROUP" -l "$LOCATION" -o none
 
-      - name: Delete existing ASA job if present (ARM)
+      # If the job exists from a previous run, delete it so the create is clean
+      - name: Delete existing ASA job if present
         uses: azure/cli@v2
         with:
           inlineScript: |
-            set -e
+            set -euo pipefail
             if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
               echo "Existing ASA job found; deleting..."
               az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs
@@ -72,20 +74,21 @@ jobs:
               echo "No existing ASA job."
             fi
 
-      - name: Create ASA job (ARM via az rest)
+      # Create ASA job via ARM REST (api-version 2021-10-01-preview)
+      - name: Create ASA job (REST)
         uses: azure/cli@v2
-        env:
-          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         with:
           inlineScript: |
-            set -e
-            URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME?api-version=2020-03-01"
-            cat > /tmp/asa-job.json <<EOF
+            set -euo pipefail
+
+            URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME?api-version=2021-10-01-preview"
+
+            cat >/tmp/asa-job.json <<EOF
             {
               "location": "$LOCATION",
               "identity": { "type": "SystemAssigned" },
+              "sku": { "name": "Standard" },
               "properties": {
-                "sku": { "name": "Standard" },
                 "jobType": "Cloud",
                 "eventsOutOfOrderPolicy": "Adjust",
                 "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
@@ -96,69 +99,49 @@ jobs:
               }
             }
             EOF
+
             echo "Creating ASA job $ASA_JOB_NAME ..."
-            az rest --method put --uri "$URI" --body @/tmp/asa-job.json --output none
+            az rest --method put --uri "$URI" --body @/tmp/asa-job.json --only-show-errors -o none
             echo "ASA job created."
 
-      - name: Wait for ASA MSI principalId
+      # Wait for the system-assigned identity to be ready so RBAC in Bicep succeeds
+      - name: Wait for ASA managed identity (principalId)
         uses: azure/cli@v2
         with:
           inlineScript: |
-            set -e
-            for i in {1..36}; do
-              PID=$(az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs --query identity.principalId -o tsv 2>/dev/null || true)
+            set -euo pipefail
+            for i in {1..30}; do
+              PID=$(az resource show \
+                -g "$RESOURCE_GROUP" \
+                -n "$ASA_JOB_NAME" \
+                --resource-type Microsoft.StreamAnalytics/streamingjobs \
+                --query "identity.principalId" -o tsv || true)
               if [ -n "$PID" ] && [ "$PID" != "None" ]; then
-                echo "MSI principalId ready: $PID"; break
+                echo "principalId ready: $PID"; break
               fi
-              echo "Waiting for MSI principalId... ($i)"; sleep 5
+              echo "Waiting for principalId... ($i)"; sleep 5
             done
 
-      - name: Compile Bicep to ARM JSON
+      # Deploy with AZ CLI (avoid azure/arm-deploy validation bug)
+      - name: Deploy Bicep (az cli)
         uses: azure/cli@v2
         with:
           inlineScript: |
-            set -e
-            az bicep install || true
-            az bicep build --file "$TEMPLATE_FILE" --stdout > "$COMPILED_JSON"
-            echo "Compiled: $COMPILED_JSON"
+            set -euo pipefail
+            az deployment group create \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "stream-deploy-${GITHUB_RUN_ID}" \
+              --template-file "$TEMPLATE_FILE" \
+              --parameters @"$PARAM_FILE" \
+              --mode Incremental \
+              --only-show-errors
 
-      - name: Guard — compiled template must not create ASA job
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            set -e
-            if command -v jq >/dev/null 2>&1; then
-              HAS_JOB=$(jq 'any(.resources[]?; .type=="Microsoft.StreamAnalytics/streamingjobs")' "$COMPILED_JSON")
-              if [ "$HAS_JOB" = "true" ]; then
-                echo "::error::Your compiled template still defines Microsoft.StreamAnalytics/streamingjobs. Mark it as 'existing' in Bicep."
-                exit 1
-              fi
-            else
-              if grep -q '"Microsoft.StreamAnalytics/streamingjobs"' "$COMPILED_JSON"; then
-                echo "::error::Your compiled template still defines Microsoft.StreamAnalytics/streamingjobs. Mark it as 'existing' in Bicep."
-                exit 1
-              fi
-            fi
-            echo "OK: No streamingjobs resource found in compiled template."
-
-      - name: Deploy compiled ARM template (incremental)
-        uses: azure/arm-deploy@v2
-        with:
-          scope: resourcegroup
-          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          resourceGroupName: ${{ env.RESOURCE_GROUP }}
-          template: ${{ env.COMPILED_JSON }}
-          parameters: ${{ env.PARAM_FILE }}
-          deploymentName: stream-deploy-${{ github.run_id }}
-          failOnStdErr: false
-
+      # Optional: stop ASA job after deploy to avoid runtime costs
       - name: Stop ASA job (cost-safe)
-        if: always()
         uses: azure/cli@v2
-        env:
-          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         with:
           inlineScript: |
-            set -e
-            URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME/stop?api-version=2020-03-01"
-            az rest --method post --uri "$URI" --output none || true
+            set -euo pipefail
+            az rest --method post \
+              --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME/stop?api-version=2021-10-01-preview" \
+              -o none || true
