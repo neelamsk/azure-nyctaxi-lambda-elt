@@ -15,6 +15,10 @@ env:
   PARAM_FILE: infra/streaming-bicep/params.dev.json
   COMPILED_JSON: infra/streaming-bicep/compiled.arm.json
   ASA_JOB_NAME: asa-nyctaxi-trip
+  # Keep these aligned with your Bicep params (adjust if needed)
+  LATE_SECONDS: "900"
+  DATA_LOCALE: en-US
+  COMPAT_LEVEL: "1.2"
 
 concurrency:
   group: streaming-bicep-deploy
@@ -27,6 +31,7 @@ jobs:
       id-token: write
       contents: read
     environment: streaming-dev
+
     steps:
       - uses: actions/checkout@v4
 
@@ -56,13 +61,19 @@ jobs:
           inlineScript: |
             az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
 
-      # IMPORTANT: delete any existing ASA job to avoid PATCH semantics
+      - name: Install Stream Analytics CLI extension
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az extension add -n stream-analytics -y || az extension update -n stream-analytics || true
+            az extension list -o table
+
+      # Clean slate to avoid PATCH semantics
       - name: Delete existing ASA job if present
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -e
-            az extension add -n stream-analytics -y || true
             if az stream-analytics job show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" >/dev/null 2>&1; then
               echo "Existing ASA job found; deleting..."
               az stream-analytics job stop -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" || true
@@ -73,26 +84,79 @@ jobs:
               echo "No existing ASA job."
             fi
 
-      # Compile Bicep -> ARM JSON
-      - name: Compile Bicep to ARM JSON (debug)
+      # Create the ASA job via CLI with sku Standard
+      - name: Create ASA job (CLI with sku + baseline props)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -e
+            echo "Creating ASA job $ASA_JOB_NAME in $RESOURCE_GROUP/$LOCATION ..."
+            az stream-analytics job create \
+              -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" -l "$LOCATION" \
+              --sku Standard \
+              --data-locale "$DATA_LOCALE" \
+              --events-out-of-order-policy Adjust \
+              --events-out-of-order-max-delay "$LATE_SECONDS" \
+              --events-late-arrival-max-delay "$LATE_SECONDS" \
+              --output-error-policy Stop \
+              --compatibility-level "$COMPAT_LEVEL" \
+              --job-type Cloud
+            echo "ASA job created."
+
+      # Enable MSI so ARM can assign RBAC to this principal
+      - name: Enable SystemAssigned MSI on ASA job
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -e
+            # Try to set MSI; if already set, this is idempotent
+            az stream-analytics job update \
+              -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" \
+              --set identity.type=SystemAssigned || true
+
+            # Wait until principalId is issued
+            echo "Waiting for MSI principalId..."
+            for i in {1..30}; do
+              PID=$(az stream-analytics job show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --query identity.principalId -o tsv || true)
+              if [ -n "$PID" ] && [ "$PID" != "None" ]; then
+                echo "MSI principalId ready: $PID"
+                break
+              fi
+              echo "Not ready yet... ($i)"
+              sleep 5
+            done
+
+      # Build Bicep -> JSON (must NOT include the streamingjobs resource anymore)
+      - name: Compile Bicep to ARM JSON
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -e
             az bicep install || true
-            az bicep version
             az bicep build --file "$TEMPLATE_FILE" --stdout > "$COMPILED_JSON"
-            echo "----- ASA job (type, apiVersion, name, sku) -----"
-            if command -v jq >/dev/null 2>&1; then
-              cat "$COMPILED_JSON" \
-                | jq '.resources[] 
-                      | select(.type=="Microsoft.StreamAnalytics/streamingjobs") 
-                      | {type, apiVersion, name, sku: .sku}'
-            else
-              grep -nE '"Microsoft.StreamAnalytics/streamingjobs"|\"sku\"|\"apiVersion\"' "$COMPILED_JSON" || true
-            fi
+            echo "Compiled: $COMPILED_JSON"
 
-      # Deploy the compiled JSON (not the .bicep)
+      # Guard: fail fast if the compiled template still defines the ASA job
+      - name: Guard — compiled template must not create ASA job
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -e
+            if command -v jq >/dev/null 2>&1; then
+              HAS_JOB=$(jq 'any(.resources[]?; .type=="Microsoft.StreamAnalytics/streamingjobs")' "$COMPILED_JSON")
+              if [ "$HAS_JOB" = "true" ]; then
+                echo "::error::Your compiled template still defines Microsoft.StreamAnalytics/streamingjobs. Update Bicep to mark the job as 'existing'."
+                exit 1
+              fi
+            else
+              if grep -q '"Microsoft.StreamAnalytics/streamingjobs"' "$COMPILED_JSON"; then
+                echo "::error::Your compiled template still defines Microsoft.StreamAnalytics/streamingjobs. Update Bicep to mark the job as 'existing'."
+                exit 1
+              fi
+            fi
+            echo "OK: No streamingjobs resource found in compiled template."
+
+      # Deploy all other infra (inputs/outputs/transformations, RBAC, EH, Storage, etc.)
       - name: Deploy compiled ARM template (incremental)
         uses: azure/arm-deploy@v2
         with:
@@ -104,10 +168,10 @@ jobs:
           deploymentName: stream-deploy-${{ github.run_id }}
           failOnStdErr: false
 
-      # Optional: stop ASA job post-deploy to prevent costs
+      # Optional: stop ASA job after deploy to avoid runtime charges
       - name: Stop ASA job (cost-safe)
+        if: always()
         uses: azure/cli@v2
         with:
           inlineScript: |
-            az extension add -n stream-analytics -y || true
             az stream-analytics job stop -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" || true

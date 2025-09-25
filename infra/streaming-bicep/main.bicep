@@ -79,7 +79,7 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
 }
 
 // ---------- Stream Analytics job ----------
-resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' = {
+resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' existing = {
   name: 'asa-${prefix}-trip' 
   location: location
   identity: {
