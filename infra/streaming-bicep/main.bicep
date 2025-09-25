@@ -78,8 +78,8 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
   parent: eh
 }
 
-// ---------- Stream Analytics (ALL at 2020-03-01) ----------
-resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' = {
+// ---------- Stream Analytics job ----------
+resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' = {
   name: 'asa-${prefix}-trip'
   location: location
   identity: {
@@ -90,9 +90,16 @@ resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' = {
   }
   properties: {
     jobType: 'Cloud'
-    // keep the rest minimal; add advanced knobs after create succeeds
+    dataLocale: 'en-US'
+    compatibilityLevel: '1.2'
+    eventsOutOfOrderPolicy: 'Adjust'
+    eventsOutOfOrderMaxDelayInSeconds: lateSeconds
+    eventsLateArrivalMaxDelayInSeconds: lateSeconds
+    outputErrorPolicy: 'Stop'
+    contentStoragePolicy: 'SystemAccount'
   }
 }
+
 
 resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-preview' = {
   name: 'trip_in'
