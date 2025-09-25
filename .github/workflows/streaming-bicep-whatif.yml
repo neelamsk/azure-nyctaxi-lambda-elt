@@ -42,7 +42,7 @@ jobs:
           inlineScript: |
             az account show -o table
 
-      # Optional: compile to JSON just to surface any Bicep syntax issues early
+      # Optional: compile to JSON  just to surface any Bicep syntax issues early
       - name: Compile Bicep (debug)
         uses: azure/cli@v2
         with:
