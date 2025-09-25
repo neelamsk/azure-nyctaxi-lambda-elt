@@ -79,23 +79,30 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
 }
 
 // ---------- Stream Analytics (ALL at 2020-03-01) ----------
-resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' = {
+resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' = {
   name: 'asa-${prefix}-trip'
   location: location
-  identity: { type: 'SystemAssigned' }
-  sku: { name: 'Standard' }           // REQUIRED; keep minimal schema
+  identity: {
+    type: 'SystemAssigned'
+  }
+  sku: {
+    name: 'Standard'
+  }
   properties: {
     jobType: 'Cloud'
-    // keep the rest minimal for now; we’ll add optional props after create succeeds
+    // keep the rest minimal; add advanced knobs after create succeeds
   }
 }
 
-resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2020-03-01' = {
+resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2021-10-01-preview' = {
   name: 'trip_in'
   parent: asa
   properties: {
     type: 'Stream'
-    serialization: { type: 'Json', properties: { encoding: 'UTF8' } }
+    serialization: {
+      type: 'Json'
+      properties: { encoding: 'UTF8' }
+    }
     datasource: {
       type: 'Microsoft.ServiceBus/EventHub'
       properties: {
@@ -108,7 +115,8 @@ resource asaInput 'Microsoft.StreamAnalytics/streamingjobs/inputs@2020-03-01' = 
   }
 }
 
-resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-01' = {
+
+resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
   name: 'bronze_out'
   parent: asa
   properties: {
@@ -123,11 +131,15 @@ resource asaOutBronze 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-0
         authenticationMode: 'Msi'
       }
     }
-    serialization: { type: 'Json', properties: { encoding: 'UTF8', format: 'LineSeparated' } }
+    serialization: {
+      type: 'Json'
+      properties: { encoding: 'UTF8', format: 'LineSeparated' }
+    }
   }
 }
 
-resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-01' = {
+
+resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2021-10-01-preview' = {
   name: 'silver_out'
   parent: asa
   properties: {
@@ -142,11 +154,14 @@ resource asaOutSilver 'Microsoft.StreamAnalytics/streamingjobs/outputs@2020-03-0
         authenticationMode: 'Msi'
       }
     }
-    serialization: { type: 'Json', properties: { encoding: 'UTF8', format: 'LineSeparated' } }
-  } 
+    serialization: {
+      type: 'Json'
+      properties: { encoding: 'UTF8', format: 'LineSeparated' }
+    }
+  }
 }
 
-resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2020-03-01' = {
+resource asaTransform 'Microsoft.StreamAnalytics/streamingjobs/transformations@2021-10-01-preview' = {
   name: 't1'
   parent: asa
   properties: {

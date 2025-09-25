@@ -3,7 +3,7 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
       "prefix": { "value": "nyctaxi" },
-      "location": { "value": "canadacentral" },
+      "location": { "value": "eastus2" },
       "ehPartitions": { "value": 4 },
       "lateSeconds": { "value": 900 }
     }
