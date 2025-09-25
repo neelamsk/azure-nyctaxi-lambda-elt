@@ -5,7 +5,11 @@
       "prefix": { "value": "nyctaxi" },
       "location": { "value": "eastus2" },
       "ehPartitions": { "value": 4 },
-      "lateSeconds": { "value": 900 }
+      "lateSeconds": { "value": 900 },
+      "storageAccountName": { "value": "nyctaxistreamsa001" },
+      "eventHubNamespaceName": { "value": "nyctaxi-ehns" },
+      "eventHubName": { "value": "trips" },
+      "tags": { "value": { "app": "nyctaxi", "env": "dev" } }
     }
   }
   
