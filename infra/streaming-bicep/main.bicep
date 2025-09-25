@@ -80,7 +80,7 @@ resource cgAsa 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-0
 
 // ---------- Stream Analytics job ----------
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2020-03-01' = {
-  name: 'asa-${prefix}-trip'
+  name: 'asa-${prefix}-trip' 
   location: location
   identity: {
     type: 'SystemAssigned'
