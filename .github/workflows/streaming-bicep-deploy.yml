@@ -14,6 +14,7 @@ env:
   TEMPLATE_FILE: infra/streaming-bicep/main.bicep
   PARAM_FILE: infra/streaming-bicep/params.dev.json
   COMPILED_JSON: infra/streaming-bicep/compiled.arm.json
+  ASA_JOB_NAME: asa-nyctaxi-trip
 
 concurrency:
   group: streaming-bicep-deploy
@@ -25,7 +26,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: streaming-dev   # ensure matching OIDC federated credential exists
+    environment: streaming-dev
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +56,24 @@ jobs:
           inlineScript: |
             az group create -n "$RESOURCE_GROUP" -l "$LOCATION"
 
-      # Compile Bicep -> ARM JSON into the repo workspace (persist across steps)
+      # IMPORTANT: delete any existing ASA job to avoid PATCH semantics
+      - name: Delete existing ASA job if present
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -e
+            az extension add -n stream-analytics -y || true
+            if az stream-analytics job show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" >/dev/null 2>&1; then
+              echo "Existing ASA job found; deleting..."
+              az stream-analytics job stop -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" || true
+              az stream-analytics job delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" -y
+              az stream-analytics job wait -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --deleted
+              echo "ASA job deleted."
+            else
+              echo "No existing ASA job."
+            fi
+
+      # Compile Bicep -> ARM JSON
       - name: Compile Bicep to ARM JSON (debug)
         uses: azure/cli@v2
         with:
@@ -64,15 +82,17 @@ jobs:
             az bicep install || true
             az bicep version
             az bicep build --file "$TEMPLATE_FILE" --stdout > "$COMPILED_JSON"
-            echo "----- ASA job block (type, name, sku) from compiled JSON -----"
+            echo "----- ASA job (type, apiVersion, name, sku) -----"
             if command -v jq >/dev/null 2>&1; then
               cat "$COMPILED_JSON" \
-                | jq '.resources[] | select(.type=="Microsoft.StreamAnalytics/streamingjobs") | {type, name, sku: .sku}'
+                | jq '.resources[] 
+                      | select(.type=="Microsoft.StreamAnalytics/streamingjobs") 
+                      | {type, apiVersion, name, sku: .sku}'
             else
-              grep -nE '"Microsoft.StreamAnalytics/streamingjobs"|\"sku\"' "$COMPILED_JSON" || true
+              grep -nE '"Microsoft.StreamAnalytics/streamingjobs"|\"sku\"|\"apiVersion\"' "$COMPILED_JSON" || true
             fi
 
-      # IMPORTANT: Deploy the compiled JSON, not the .bicep
+      # Deploy the compiled JSON (not the .bicep)
       - name: Deploy compiled ARM template (incremental)
         uses: azure/arm-deploy@v2
         with:
@@ -82,12 +102,12 @@ jobs:
           template: ${{ env.COMPILED_JSON }}
           parameters: ${{ env.PARAM_FILE }}
           deploymentName: stream-deploy-${{ github.run_id }}
-          failOnStdErr: false   # ignore warnings printed to stderr
+          failOnStdErr: false
 
-      # Cost-safe default: stop ASA so you aren't billed after deploy
+      # Optional: stop ASA job post-deploy to prevent costs
       - name: Stop ASA job (cost-safe)
         uses: azure/cli@v2
         with:
           inlineScript: |
             az extension add -n stream-analytics -y || true
-            az stream-analytics job stop -g "$RESOURCE_GROUP" -n "asa-nyctaxi-trip" || true
+            az stream-analytics job stop -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" || true
