@@ -17,6 +17,7 @@ env:
   DATA_LOCALE: en-US
   LATE_SECONDS: 900
   COMPAT_LEVEL: "1.2"
+  # Expose subscription id for REST calls and az cli
   SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
 concurrency:
@@ -47,17 +48,23 @@ jobs:
           inlineScript: |
             az account show -o table
 
-      - name: Ensure provider registered (Stream Analytics)
+      - name: Ensure provider registrations (best-effort)
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -euo pipefail
-            az provider register -n Microsoft.StreamAnalytics -o none || true
-            # Best-effort wait (usually quick; avoids random ARM 409s)
+            for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage; do
+              az provider register -n "$rp" -o none || true
+            done
+            # Quick wait to avoid sporadic 409s
             for i in {1..20}; do
-              state=$(az provider show -n Microsoft.StreamAnalytics --query registrationState -o tsv || echo "")
-              echo "Microsoft.StreamAnalytics registrationState: ${state}"
-              [ "$state" = "Registered" ] && break || sleep 3
+              ok=1
+              for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage; do
+                state=$(az provider show -n "$rp" --query registrationState -o tsv || echo "")
+                echo "$rp registrationState: ${state}"
+                [ "$state" = "Registered" ] || ok=0
+              done
+              [ $ok -eq 1 ] && break || sleep 3
             done
 
       - name: Ensure RG exists
@@ -66,6 +73,7 @@ jobs:
           inlineScript: |
             az group create -n "$RESOURCE_GROUP" -l "$LOCATION" -o none
 
+      # If the job exists from a previous run, delete it so the create is clean
       - name: Delete existing ASA job if present
         uses: azure/cli@v2
         with:
@@ -85,7 +93,8 @@ jobs:
               echo "No existing ASA job."
             fi
 
-      - name: Create ASA job (robust API + SKU fallback)
+      # Create ASA job via ARM REST with fallbacks (api 2021-10-01-preview and 2020-03-01)
+      - name: Create ASA job (REST)
         uses: azure/cli@v2
         with:
           inlineScript: |
@@ -112,7 +121,7 @@ jobs:
                 "compatibilityLevel": "$COMPAT_LEVEL"
               }
             }
-            JSON
+JSON
               else
                 cat > "$BODY" <<JSON
             {
@@ -129,7 +138,7 @@ jobs:
                 "compatibilityLevel": "$COMPAT_LEVEL"
               }
             }
-            JSON
+JSON
               fi
 
               local URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME?api-version=$API"
@@ -154,7 +163,9 @@ jobs:
             fi
             echo "ASA job created."
 
+      # Wait for the system-assigned identity to be ready so RBAC in Bicep succeeds
       - name: Wait for ASA managed identity (principalId)
+        id: mi
         uses: azure/cli@v2
         with:
           inlineScript: |
@@ -166,11 +177,14 @@ jobs:
                 --resource-type Microsoft.StreamAnalytics/streamingjobs \
                 --query "identity.principalId" -o tsv || true)
               if [ -n "$PID" ] && [ "$PID" != "None" ]; then
-                echo "principalId ready: $PID"; break
+                echo "principalId ready: $PID"
+                echo "pid=$PID" >> "$GITHUB_OUTPUT"
+                break
               fi
               echo "Waiting for principalId... ($i)"; sleep 5
             done
 
+      # Deploy with AZ CLI (avoid azure/arm-deploy validation bug)
       - name: Deploy Bicep (az cli)
         uses: azure/cli@v2
         with:
@@ -181,17 +195,16 @@ jobs:
               --name "stream-deploy-${GITHUB_RUN_ID}" \
               --template-file "$TEMPLATE_FILE" \
               --parameters @"$PARAM_FILE" \
+              --parameters asaPrincipalId="${{ steps.mi.outputs.pid }}" \
               --mode Incremental \
               --only-show-errors
 
+      # Optional: stop ASA job after deploy to avoid runtime costs
       - name: Stop ASA job (cost-safe)
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -euo pipefail
-            # Try preview API, then stable API
             az rest --method post \
               --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME/stop?api-version=2021-10-01-preview" \
-              -o none || az rest --method post \
-              --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME/stop?api-version=2020-03-01" \
               -o none || true
