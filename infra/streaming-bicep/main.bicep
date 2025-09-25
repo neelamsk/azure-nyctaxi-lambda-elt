@@ -156,7 +156,7 @@ resource rbacSa 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Outputs (optional)
+// Outputs (optional) 
 // ──────────────────────────────────────────────────────────────────────────────
 
 output storageAccountId string = sa.id
