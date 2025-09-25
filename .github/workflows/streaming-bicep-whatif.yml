@@ -48,8 +48,10 @@ jobs:
             set -e
             az bicep install || true
             az bicep version
-            az bicep build -f "$TEMPLATE_FILE" -o /tmp/main.json
+            # Write compiled ARM to /tmp/main.json
+            az bicep build --file "$TEMPLATE_FILE" --stdout > /tmp/main.json
             echo "Bicep compiled successfully."
+
 
       - name: Ensure RG exists
         uses: azure/cli@v2
