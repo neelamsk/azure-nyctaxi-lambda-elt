@@ -2,7 +2,7 @@ name: streaming-bicep-whatif
 
 on:
   pull_request:
-    branches: [ main, collaborative ]   # include any branch you PR into
+    branches: [ main, collaborative ]
     paths:
       - 'infra/streaming-bicep/**'
       - '.github/workflows/streaming-bicep-whatif.yml'
@@ -22,7 +22,7 @@ jobs:
   what-if:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write     # <-- required for OIDC
+      id-token: write     # required for OIDC
       contents: read
     steps:
       - uses: actions/checkout@v4
@@ -34,33 +34,22 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-
-  
       - name: Who am I (debug)
         uses: azure/cli@v2
         with:
           inlineScript: |
             az account show -o table
 
-
-      - name: Show effective template (debug)
+      # Compile only (avoid az deployment validate to prevent "response was already consumed")
+      - name: Compile Bicep (debug)
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -e
-            # Install if missing (no flags)
-            if ! az bicep version >/dev/null 2>&1; then
-              az bicep install
-            fi
-            # (Optional) upgrade to latest
-            az bicep upgrade || true
-      
+            az bicep install || true
             az bicep version
-            az deployment group validate \
-              -g "$RESOURCE_GROUP" \
-              -f "$TEMPLATE_FILE" \
-              -p @"$PARAM_FILE" \
-              --only-show-errors
+            az bicep build -f "$TEMPLATE_FILE" -o /tmp/main.json
+            echo "Bicep compiled successfully."
 
       - name: Ensure RG exists
         uses: azure/cli@v2
@@ -78,4 +67,4 @@ jobs:
           parameters: ${{ env.PARAM_FILE }}
           additionalArguments: --what-if
           deploymentName: pr-whatif-${{ github.run_id }}
-          failOnStdErr: false 
+          failOnStdErr: false

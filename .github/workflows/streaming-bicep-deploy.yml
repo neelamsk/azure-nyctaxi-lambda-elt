@@ -1,4 +1,3 @@
-
 name: streaming-bicep-deploy
 
 on:
@@ -25,7 +24,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: streaming-dev   # optional: add env approval in repo settings
+    environment: streaming-dev   # ensure you have a matching OIDC federated credential for this env
     steps:
       - uses: actions/checkout@v4
 
@@ -35,31 +34,23 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        
+
       - name: Who am I (debug)
         uses: azure/cli@v2
         with:
           inlineScript: |
             az account show -o table
 
-      - name: Validate (debug)
+      # Compile-only (avoid az deployment validate to prevent "response consumed")
+      - name: Compile Bicep (debug)
         uses: azure/cli@v2
         with:
-            inlineScript: |
-                set -e
-                # Install if missing (no flags)
-                if ! az bicep version >/dev/null 2>&1; then
-                az bicep install
-                fi
-                # (Optional) upgrade to latest
-                az bicep upgrade || true
-        
-                az bicep version
-                az deployment group validate \
-                -g "$RESOURCE_GROUP" \
-                -f "$TEMPLATE_FILE" \
-                -p @"$PARAM_FILE" \
-                --only-show-errors
+          inlineScript: |
+            set -e
+            az bicep install || true
+            az bicep version
+            az bicep build -f "$TEMPLATE_FILE" -o /tmp/main.json
+            echo "Bicep compiled successfully."
 
       - name: Ensure RG exists
         uses: azure/cli@v2
@@ -76,15 +67,19 @@ jobs:
           template: ${{ env.TEMPLATE_FILE }}
           parameters: ${{ env.PARAM_FILE }}
           deploymentName: stream-deploy-${{ github.run_id }}
-          # deploymentMode: Incremental   # default; leave as-is
-          failOnStdErr: false
+          failOnStdErr: false   # ignore warning noise in stderr
 
+      # Optional: show ASA job block to confirm sku in compiled JSON
       - name: Build Bicep to JSON & show ASA job
         uses: azure/cli@v2
         with:
           inlineScript: |
+            set -e
             az bicep install || true
-                az bicep build -f "$TEMPLATE_FILE" -o /tmp/main.json
-                echo "----- ASA job block -----"
-                cat /tmp/main.json | jq '.resources[] | select(.type=="Microsoft.StreamAnalytics/streamingjobs")'
-        
+            az bicep build -f "$TEMPLATE_FILE" -o /tmp/main.json
+            echo "----- ASA job block (type, name, sku) -----"
+            if command -v jq >/dev/null 2>&1; then
+              cat /tmp/main.json | jq '.resources[] | select(.type=="Microsoft.StreamAnalytics/streamingjobs") | {type, name, sku: .sku}'
+            else
+              grep -nE '"Microsoft.StreamAnalytics/streamingjobs"|\"sku\"' /tmp/main.json || true
+            fi
