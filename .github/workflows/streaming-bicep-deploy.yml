@@ -72,88 +72,93 @@ jobs:
           inlineScript: |
             az group create -n "$RESOURCE_GROUP" -l "$LOCATION" -o none
 
-      # Ensure ASA job via REST (PUT-first; delete only if all PUT shapes fail)
+      # Ensure ASA job via REST (stop-if-needed, then PUT with properties.sku)
       - name: Ensure ASA job (REST, idempotent)
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -euo pipefail
 
-            put_job () {
-              local API="$1"      # 2021-10-01-preview or 2020-03-01
-              local SHAPE="$2"    # "top" or "prop"
-              local BODY="/tmp/asa-job.json"
+            get_state () {
+            local API="2021-10-01-preview"
+            az rest --method get \
+                --uri "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.StreamAnalytics/streamingjobs/${ASA_JOB_NAME}?api-version=${API}" \
+                --query "properties.jobState" -o tsv 2>/dev/null || echo ""
+            }
 
-              if [ "$SHAPE" = "top" ]; then
-                cat > "$BODY" <<JSON
+            stop_if_needed () {
+            local state="$1"
+            case "$state" in
+                Created|Stopped|Failed|"") return 0 ;;  # allowed for write, or not found
+                *)
+                echo "Job state is '$state' -> stopping before PUT..."
+                az rest --method post \
+                    --uri "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.StreamAnalytics/streamingjobs/${ASA_JOB_NAME}/stop?api-version=2021-10-01-preview" \
+                    -o none || true
+                # wait until Stopped/Failed/Created
+                for i in {1..30}; do
+                    s=$(get_state)
+                    echo "Waiting for stoppage... state=${s:-<unknown>} ($i)"
+                    case "$s" in
+                    Created|Stopped|Failed|"") break ;;
+                    *) sleep 5 ;;
+                    esac
+                done
+                ;;
+            esac
+            }
+
+            put_job_prop_sku () {
+            local API="2020-03-01"
+            local BODY="/tmp/asa-job.json"
+            cat > "$BODY" <<JSON
             {
-                "location": "$LOCATION",
-                "identity": { "type": "SystemAssigned" },
+            "location": "$LOCATION",
+            "identity": { "type": "SystemAssigned" },
+            "properties": {
                 "sku": { "name": "Standard" },
-                "properties": {
-                    "jobType": "Cloud",
-                    "eventsOutOfOrderPolicy": "Adjust",
-                    "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
-                    "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
-                    "dataLocale": "$DATA_LOCALE",
-                    "outputErrorPolicy": "Stop",
-                    "compatibilityLevel": "$COMPAT_LEVEL"
-                }
+                "jobType": "Cloud",
+                "eventsOutOfOrderPolicy": "Adjust",
+                "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
+                "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
+                "dataLocale": "$DATA_LOCALE",
+                "outputErrorPolicy": "Stop",
+                "compatibilityLevel": "$COMPAT_LEVEL"
+            }
             }
             JSON
-              else
-                cat > "$BODY" <<JSON
-                {
-                "location": "$LOCATION",
-                "identity": { "type": "SystemAssigned" },
-                "properties": {
-                    "sku": { "name": "Standard" },
-                    "jobType": "Cloud",
-                    "eventsOutOfOrderPolicy": "Adjust",
-                    "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
-                    "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
-                    "dataLocale": "$DATA_LOCALE",
-                    "outputErrorPolicy": "Stop",
-                    "compatibilityLevel": "$COMPAT_LEVEL"
-                    }
-                }
-            JSON
-              fi
-
-              local URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME?api-version=$API"
-                az rest \
+            az rest \
                 --method put \
-                --uri "$URI" \
+                --uri "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.StreamAnalytics/streamingjobs/${ASA_JOB_NAME}?api-version=${API}" \
                 --headers "Content-Type=application/json" \
                 --body @"$BODY" \
                 --only-show-errors -o none
             }
 
-            echo "Ensuring ASA job $ASA_JOB_NAME exists/updated..."
-            set +e
-            put_job 2021-10-01-preview top; rc=$?
-            if [ $rc -ne 0 ]; then
-              echo "Fallback: 2020-03-01 with top-level sku"
-              put_job 2020-03-01 top; rc=$?
-            fi
-            if [ $rc -ne 0 ]; then
-              echo "Fallback: 2020-03-01 with properties.sku"
-              put_job 2020-03-01 prop; rc=$?
-            fi
+            # 1) If job exists and is not in an allowed state, stop it
+            CUR_STATE=$(get_state)
+            echo "Current ASA state: ${CUR_STATE:-<not found>}"
+            stop_if_needed "$CUR_STATE"
 
-            if [ $rc -ne 0 ]; then
-              echo "PUT failed across shapes; deleting and recreating once..."
-              az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs
-              for i in {1..30}; do
-                az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1 || break
-                echo "Waiting for deletion... ($i)"; sleep 5
-              done
-              put_job 2020-03-01 prop; rc=$?
-            fi
+            # 2) PUT using the known-good 2020-03-01 + properties.sku shape
+            echo "Applying job definition (2020-03-01, properties.sku)..."
+            set +e
+            put_job_prop_sku; rc=$?
             set -e
 
-            [ $rc -eq 0 ] || { echo "Failed to create/update ASA job." >&2; exit 1; }
+            if [ $rc -ne 0 ]; then
+            echo "PUT failed even after stop; last resort: delete & recreate once..."
+            az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs || true
+            for i in {1..30}; do
+                az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1 || break
+                echo "Waiting for deletion... ($i)"; sleep 5
+            done
+            put_job_prop_sku
+            fi
+
             echo "ASA job ensured."
+
+
 
       - name: Wait for ASA managed identity (principalId)
         id: mi
