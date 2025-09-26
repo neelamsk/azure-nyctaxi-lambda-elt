@@ -245,7 +245,7 @@ jobs:
             set -euo pipefail
             bash infra/scripts/asa-wire.sh "$RG" "$ASA" "$EH_NS" "$EH_NAME" "$SA" "$CONTAINER"
             
-      # Optional: verify the storage container exists (debug)
+      # Verify the storage container exists (debug) 
       - name: List storage containers (debug)
         uses: azure/cli@v2
         env:
