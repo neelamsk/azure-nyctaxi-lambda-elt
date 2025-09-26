@@ -127,7 +127,7 @@ output eventHubId string = eh.id
 output blobContainerUrl string = 'https://${storageAccountName}.blob.${environment().suffixes.storage}/${saContainer.name}'
 
 
-// Alerts  
+// Alerts   
 module alerts './modules/alerts.bicep' = {
   name: 'alerts'
   params: {
