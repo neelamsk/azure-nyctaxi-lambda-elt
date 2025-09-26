@@ -208,3 +208,18 @@ jobs:
             az rest --method post \
               --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME/stop?api-version=2021-10-01-preview" \
               -o none || true
+
+              - name: Wire ASA (inputs/outputs/query) and start it
+              uses: azure/cli@v2
+              env:
+                RG: ${{ env.RESOURCE_GROUP }}
+                ASA: ${{ env.ASA_JOB_NAME }}
+                EH_NS: nyctaxi-ehns
+                EH_NAME: trips
+                SA: nyctaxistreamsa001
+                CONTAINER: streaming
+              with:
+                inlineScript: |
+                  set -euo pipefail
+                  bash infra/scripts/asa-wire.sh "$RG" "$ASA" "$EH_NS" "$EH_NAME" "$SA" "$CONTAINER"
+            
