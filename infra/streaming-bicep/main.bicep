@@ -26,6 +26,13 @@ param lawName string = 'nyctaxi-law-dev'
 @description('LAW retention days')
 param lawRetentionDays int = 30
 
+@description('ASA job name (it already exists, created via REST in Actions)')
+param asaJobName string = 'asa-nyctaxi-trip'
+
+@description('Alert email receiver')
+param alertEmail string = 'you@example.com'
+
+// LAW
 module observability './modules/observability.bicep' = {
   name: 'observability'
   params: {
@@ -119,18 +126,19 @@ output storageAccountId string = sa.id
 output eventHubId string = eh.id
 output blobContainerUrl string = 'https://${storageAccountName}.blob.${environment().suffixes.storage}/${saContainer.name}'
 
-@description('Alert email receiver')
-param alertEmail string = 'you@example.com'
 
+// Alerts 
 module alerts './modules/alerts.bicep' = {
   name: 'alerts'
   params: {
     agName: 'nyctaxi-dev-ag'
-    agEmail: "alertEmail"
-    asaJobId: streamAnalyticsJob.id          // your ASA job resource id
-    ehNamespaceId: eventHubNamespace.id      // your EH namespace id
-    lawId: observability.outputs.lawId       // from Step 2
-    storageAccountId: storageAccount.id
+    agEmail: alertEmail
+
+    // compute IDs by name; no need to have them as declared resources
+    asaJobId: resourceId('Microsoft.StreamAnalytics/streamingjobs', asaJobName)
+    ehNamespaceId: resourceId('Microsoft.EventHub/namespaces', eventHubNamespaceName)
+
+    lawId: observability.outputs.lawId
     prefix: 'nyctaxi-dev'
   }
 }

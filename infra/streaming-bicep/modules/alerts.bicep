@@ -9,9 +9,8 @@ param agEmail string
 param asaJobId string
 param ehNamespaceId string
 param lawId string
-param storageAccountId string
 
-@description('Alert name prefixes (env-aware)')
+@description('Alert name prefix (env-aware)')
 param prefix string = 'nyctaxi-dev'
 
 resource ag 'Microsoft.Insights/actionGroups@2023-01-01' = {
@@ -103,7 +102,7 @@ resource stg5xx 'Microsoft.Insights/scheduledQueryRules@2022-09-01-preview' = {
     displayName: 'Storage 5xx in 15m'
     description: 'Alerts on any 5xx from Blob read/write in last 15 minutes'
     enabled: true
-    scopes: [ lawId ]  // LAW-scoped log alert
+    scopes: [ lawId ] // LAW-scoped log alert
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
     severity: 3
@@ -125,9 +124,7 @@ AzureDiagnostics
     }
     actions: {
       actionGroups: [
-        {
-          actionGroupId: ag.id
-        }
+        { actionGroupId: ag.id }
       ]
     }
   }
