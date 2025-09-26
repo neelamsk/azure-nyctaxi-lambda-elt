@@ -15,7 +15,7 @@ JOB_ID="/subscriptions/${SUB_ID}/resourceGroups/${RG}/providers/Microsoft.Stream
 URI_BASE="https://management.azure.com${JOB_ID}"
 
 # 1) Input (Event Hub, MSI auth). Use $Default or pass CONSUMER_GROUP env to override.
-CG="${CONSUMER_GROUP:-$Default}"
+CG="${CONSUMER_GROUP:-\$Default}"   # literal "$Default" unless overridden
 
 echo "Creating ASA input 'inEH' (Event Hub ${EH_NAMESPACE}/${EH_NAME}, CG=${CG})..."
 az rest --method PUT \
@@ -100,3 +100,5 @@ for i in {1..20}; do
 done
 
 echo "ASA wiring complete."
+
+
