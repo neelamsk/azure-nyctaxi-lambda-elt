@@ -29,38 +29,43 @@ resource ag 'Microsoft.Insights/actionGroups@2023-01-01' = {
   }
 }
 
-resource asaErrors 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: '${prefix}-asa-output-errors'
-  location: 'global'
+// ASA output errors via KQL (logs), 5-min eval / 15-min window
+resource asaErrorsKql 'Microsoft.Insights/scheduledQueryRules@2022-09-01-preview' = {
+  name: '${prefix}-asa-output-errors-kql'
+  location: location
   properties: {
-    description: 'ASA OutputDataErrors > 0 in 5 min'
-    severity: 2
+    displayName: 'ASA Output Errors (logs)'
+    description: 'Alerts when ASA emits output errors in Execution logs'
     enabled: true
-    scopes: [ asaJobId ]
-    evaluationFrequency: 'PT1M'
-    windowSize: 'PT5M'
-    criteria: {
-      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+    scopes: [ lawId ]  // workspace-scoped rule
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    severity: 2
+    condition: {
       allOf: [
         {
-          name: 'OutputDataErrors'
-          metricName: 'OutputDataErrors'
-          metricNamespace: 'Microsoft.StreamAnalytics/streamingjobs'
+          query: '''
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.STREAMANALYTICS"
+| where Category == "Execution"
+| where Message has "OutputError"
+'''
+          timeAggregation: 'Count'
           operator: 'GreaterThan'
           threshold: 0
-          timeAggregation: 'Total'
-          dimensions: []
-          criterionType: 'StaticThresholdCriterion'
+          failingPeriods: { numberOfEvaluationPeriods: 1, minFailingPeriodsToAlert: 1 }
         }
       ]
     }
-    actions: [
-      {
-        actionGroupId: ag.id
-      }
-    ]
+    actions: {
+      // IMPORTANT: array of STRING IDs (not objects)
+      actionGroups: [
+        ag.id
+      ]
+    }
   }
 }
+
 
 resource ehDrop 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: '${prefix}-eh-incoming-drop'
@@ -124,9 +129,9 @@ AzureDiagnostics
       ]
     }
     actions: {
-      actionGroups: [
-        { actionGroupId: ag.id }
-      ]
+    actionGroups: [
+        ag.id
+        ]
     }
   }
 }

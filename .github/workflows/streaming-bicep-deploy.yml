@@ -17,6 +17,8 @@ env:
   DATA_LOCALE: en-US
   LATE_SECONDS: 900
   COMPAT_LEVEL: "1.2"
+  # Optional alert email for Bicep (set in repo Variables/Secrets if you want)
+  ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
   # Expose subscription id for REST calls and az cli
   SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
@@ -53,13 +55,13 @@ jobs:
         with:
           inlineScript: |
             set -euo pipefail
-            for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage; do
+            for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights; do
               az provider register -n "$rp" -o none || true
             done
             # Quick wait to avoid sporadic 409s
             for i in {1..20}; do
               ok=1
-              for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage; do
+              for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights; do
                 state=$(az provider show -n "$rp" --query registrationState -o tsv || echo "")
                 echo "$rp registrationState: ${state}"
                 [ "$state" = "Registered" ] || ok=0
@@ -73,28 +75,8 @@ jobs:
           inlineScript: |
             az group create -n "$RESOURCE_GROUP" -l "$LOCATION" -o none
 
-      # If the job exists from a previous run, delete it so the create is clean
-      - name: Delete existing ASA job if present
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            set -euo pipefail
-            if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
-              echo "Existing ASA job found; deleting..."
-              az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs
-              for i in {1..30}; do
-                if az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1; then
-                  echo "Waiting for deletion... ($i)"; sleep 5
-                else
-                  echo "ASA job deleted."; break
-                fi
-              done
-            else
-              echo "No existing ASA job."
-            fi
-
-      # Create ASA job via ARM REST with fallbacks (api 2021-10-01-preview and 2020-03-01)
-      - name: Create ASA job (REST)
+      # Ensure ASA job via REST (PUT-first; delete only if all PUT shapes fail)
+      - name: Ensure ASA job (REST, idempotent)
         uses: azure/cli@v2
         with:
           inlineScript: |
@@ -107,45 +89,45 @@ jobs:
 
               if [ "$SHAPE" = "top" ]; then
                 cat > "$BODY" <<JSON
-            {
-              "location": "$LOCATION",
-              "identity": { "type": "SystemAssigned" },
-              "sku": { "name": "Standard" },
-              "properties": {
-                "jobType": "Cloud",
-                "eventsOutOfOrderPolicy": "Adjust",
-                "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
-                "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
-                "dataLocale": "$DATA_LOCALE",
-                "outputErrorPolicy": "Stop",
-                "compatibilityLevel": "$COMPAT_LEVEL"
-              }
-            }
-            JSON
+{
+  "location": "$LOCATION",
+  "identity": { "type": "SystemAssigned" },
+  "sku": { "name": "Standard" },
+  "properties": {
+    "jobType": "Cloud",
+    "eventsOutOfOrderPolicy": "Adjust",
+    "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
+    "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
+    "dataLocale": "$DATA_LOCALE",
+    "outputErrorPolicy": "Stop",
+    "compatibilityLevel": "$COMPAT_LEVEL"
+  }
+}
+JSON
               else
                 cat > "$BODY" <<JSON
-            {
-              "location": "$LOCATION",
-              "identity": { "type": "SystemAssigned" },
-              "properties": {
-                "sku": { "name": "Standard" },
-                "jobType": "Cloud",
-                "eventsOutOfOrderPolicy": "Adjust",
-                "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
-                "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
-                "dataLocale": "$DATA_LOCALE",
-                "outputErrorPolicy": "Stop",
-                "compatibilityLevel": "$COMPAT_LEVEL"
-              }
-            }
-            JSON
+{
+  "location": "$LOCATION",
+  "identity": { "type": "SystemAssigned" },
+  "properties": {
+    "sku": { "name": "Standard" },
+    "jobType": "Cloud",
+    "eventsOutOfOrderPolicy": "Adjust",
+    "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
+    "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
+    "dataLocale": "$DATA_LOCALE",
+    "outputErrorPolicy": "Stop",
+    "compatibilityLevel": "$COMPAT_LEVEL"
+  }
+}
+JSON
               fi
 
               local URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME?api-version=$API"
               az rest --method put --uri "$URI" --headers Content-Type=application/json --body @"$BODY" --only-show-errors -o none
             }
 
-            echo "Creating ASA job $ASA_JOB_NAME ..."
+            echo "Ensuring ASA job $ASA_JOB_NAME exists/updated..."
             set +e
             put_job 2021-10-01-preview top; rc=$?
             if [ $rc -ne 0 ]; then
@@ -156,12 +138,21 @@ jobs:
               echo "Fallback: 2020-03-01 with properties.sku"
               put_job 2020-03-01 prop; rc=$?
             fi
-            set -e
+
+            # Only if STILL failing, delete & recreate once
             if [ $rc -ne 0 ]; then
-              echo "Failed to create ASA job after all attempts." >&2
-              exit 1
+              echo "PUT failed across shapes; deleting and recreating once..."
+              az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs
+              for i in {1..30}; do
+                az resource show -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs >/dev/null 2>&1 || break
+                echo "Waiting for deletion... ($i)"; sleep 5
+              done
+              put_job 2020-03-01 prop; rc=$?
             fi
-            echo "ASA job created."
+            set -e
+
+            [ $rc -eq 0 ] || { echo "Failed to create/update ASA job." >&2; exit 1; }
+            echo "ASA job ensured."
 
       # Wait for the system-assigned identity to be ready so RBAC in Bicep succeeds
       - name: Wait for ASA managed identity (principalId)
@@ -184,7 +175,7 @@ jobs:
               echo "Waiting for principalId... ($i)"; sleep 5
             done
 
-      # Deploy with AZ CLI (avoid azure/arm-deploy validation bug)
+      # Deploy Bicep (LAW + EH/Storage + Alerts). Incremental = updates in place.
       - name: Deploy Bicep (az cli)
         uses: azure/cli@v2
         with:
@@ -196,6 +187,8 @@ jobs:
               --template-file "$TEMPLATE_FILE" \
               --parameters @"$PARAM_FILE" \
               --parameters asaPrincipalId="${{ steps.mi.outputs.pid }}" \
+                           asaJobName="$ASA_JOB_NAME" \
+                           alertEmail="${ALERT_EMAIL:-you@example.com}" \
               --mode Incremental \
               --only-show-errors
 
@@ -207,30 +200,17 @@ jobs:
             set -euo pipefail
             JOB_URI="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.StreamAnalytics/streamingjobs/${ASA_JOB_NAME}"
             API="2021-10-01-preview"
-            
-            # Read current job state (may be empty if job not found yet)
-            STATE=$(az rest --method get \
-            --uri "${JOB_URI}?api-version=${API}" \
-            --query "properties.jobState" -o tsv 2>/dev/null || echo "")
-
+            STATE=$(az rest --method get --uri "${JOB_URI}?api-version=${API}" --query "properties.jobState" -o tsv 2>/dev/null || echo "")
             echo "ASA job state: ${STATE:-<unknown>}"
-
             case "$STATE" in
-                Created|"")
-                echo "Job state '$STATE' -> stop not applicable. Skipping."
-                ;;
-                Idle|Processing|Degraded|Starting|Restarting|Scaling)
+              Created|"") echo "Job state '$STATE' -> stop not applicable. Skipping." ;;
+              Idle|Processing|Degraded|Starting|Restarting|Scaling)
                 echo "Stopping job..."
-                az rest --method post \
-                    --uri "${JOB_URI}/stop?api-version=${API}" \
-                    -o none || true
-                ;;
-                *)
-                echo "Unexpected state '$STATE'; skipping stop."
-                ;;
+                az rest --method post --uri "${JOB_URI}/stop?api-version=${API}" -o none || true ;;
+              *) echo "Unexpected state '$STATE'; skipping stop." ;;
             esac
 
-    # add input/output the ASA Job
+      # Wire ASA (inputs/outputs/query) and start it
       - name: Wire ASA (inputs/outputs/query) and start it
         uses: azure/cli@v2
         env:
@@ -244,12 +224,12 @@ jobs:
           inlineScript: |
             set -euo pipefail
             bash infra/scripts/asa-wire.sh "$RG" "$ASA" "$EH_NS" "$EH_NAME" "$SA" "$CONTAINER"
-            
-      # Verify the storage container exists (debug) 
+
+      # Verify the storage container exists (debug)
       - name: List storage containers (debug)
         uses: azure/cli@v2
         env:
-          SA: ${{ env.SA }}              # ensure SA is set at job/env level (e.g., nyctaxistreamsa001)
+          SA: ${{ env.SA }}  # leave optional; step safely skips if unset
         with:
           inlineScript: |
             set -euo pipefail
