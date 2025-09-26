@@ -19,7 +19,7 @@ resource stg 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
 }
 
 resource policy 'Microsoft.Storage/storageAccounts/managementPolicies@2021-04-01' = {
-  name: 'default'           // management policy resource name is 'default'
+  name: 'default'
   parent: stg
   properties: {
     policy: {
@@ -40,9 +40,7 @@ resource policy 'Microsoft.Storage/storageAccounts/managementPolicies@2021-04-01
               }
             }
             filters: {
-              blobTypes: [
-                'blockBlob'
-              ]
+              blobTypes: [ 'blockBlob' ]
               prefixMatch: prefixMatches
             }
           }
