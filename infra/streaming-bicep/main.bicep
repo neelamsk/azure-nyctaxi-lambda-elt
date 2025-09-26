@@ -152,3 +152,17 @@ module diagnostics './modules/diagnostics.bicep' = {
     storageAccountName: 'nyctaxistreamsa001'
   }
 }
+
+module lifecycle './modules/storage-lifecycle.bicep' = {
+  name: 'storage-lifecycle'
+  params: {
+    storageAccountName: 'nyctaxistreamsa001' // or your param/var
+    coolAfterDays: 14
+    deleteAfterDays: 90
+    prefixMatches: [
+      'streaming/'
+      'streaming-curated/'
+      'streaming-dlq/'
+    ]
+  }
+}
