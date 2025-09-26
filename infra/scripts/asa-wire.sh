@@ -4,7 +4,7 @@ set -euo pipefail
 # Args (or use env vars if you prefer)
 RG="${1:?resource group}"
 ASA_JOB_NAME="${2:?asa job name}"
-EH_NAMESPACE="${3:?event hub namespace}"     # e.g. nyctaxi-ehns  (NO FQDN)
+EH_NAMESPACE="${3:?event hub namespace}"     # e.g. nyctaxi-ehns
 EH_NAME="${4:?event hub name}"               # e.g. trips
 SA_NAME="${5:?storage account name}"         # e.g. nyctaxistreamsa001
 CONTAINER="${6:-streaming}"                  # default container
@@ -26,7 +26,7 @@ az rest --method PUT \
   "properties": {
     "type": "Stream",
     "datasource": {
-      "type": "Microsoft.ServiceBus/EventHub",
+      "type": "Microsoft.EventHub/EventHub",
       "properties": {
         "serviceBusNamespace": "${EH_NAMESPACE}",
         "eventHubName": "${EH_NAME}",
@@ -36,7 +36,9 @@ az rest --method PUT \
     },
     "serialization": {
       "type": "Json",
-      "encoding": "UTF8"
+      "properties": {
+        "encoding": "UTF8"
+      }
     }
   }
 }
@@ -65,14 +67,17 @@ az rest --method PUT \
     },
     "serialization": {
       "type": "Json",
-      "encoding": "UTF8",
-      "format": "LineSeparated"
+      "properties": {
+        "encoding": "UTF8",
+        "format": "LineSeparated"
+      }
     }
   }
 }
 JSON
 
 # 3) Transformation/Query
+# Minimal pass-through query: SELECT * INTO [outBlob] FROM [inEH]
 echo "Creating ASA transformation..."
 az rest --method PUT \
   --uri "${URI_BASE}/transformations/Transformation?api-version=${API}" \
