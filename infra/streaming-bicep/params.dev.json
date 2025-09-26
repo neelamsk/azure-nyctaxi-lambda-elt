@@ -6,7 +6,9 @@
       "eventHubNamespaceName": { "value": "nyctaxi-ehns" },
       "eventHubName": { "value": "trips" },
       "ehPartitions": { "value": 4 },
-      "tags": { "value": { "app": "nyctaxi", "env": "dev" } }
+      "tags": { "value": { "app": "nyctaxi", "env": "dev" } },
+      "alertEmail": { "value": "neelamsk.1989@gmail.com" }
+
     }
   }
   

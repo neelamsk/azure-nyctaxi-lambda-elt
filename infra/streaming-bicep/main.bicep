@@ -20,6 +20,30 @@ param asaPrincipalId string = ''
 
 var location = resourceGroup().location
 
+@description('LAW name')
+param lawName string = 'nyctaxi-law-dev'
+
+@description('LAW retention days')
+param lawRetentionDays int = 30
+
+@description('ASA job name (it already exists, created via REST in Actions)')
+param asaJobName string = 'asa-nyctaxi-trip'
+
+@description('Alert email receiver')
+param alertEmail string = 'you@example.com'
+
+// LAW
+module observability './modules/observability.bicep' = {
+  name: 'observability'
+  params: {
+    location: resourceGroup().location
+    lawName: lawName
+    lawRetentionDays: lawRetentionDays
+  }
+}
+
+output lawId string = observability.outputs.lawId
+
 // ---- Storage Account + Container ----
 resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
@@ -101,3 +125,20 @@ resource raEhRecv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!em
 output storageAccountId string = sa.id
 output eventHubId string = eh.id
 output blobContainerUrl string = 'https://${storageAccountName}.blob.${environment().suffixes.storage}/${saContainer.name}'
+
+
+// Alerts 
+module alerts './modules/alerts.bicep' = {
+  name: 'alerts'
+  params: {
+    agName: 'nyctaxi-dev-ag'
+    agEmail: alertEmail
+
+    // compute IDs by name; no need to have them as declared resources
+    asaJobId: resourceId('Microsoft.StreamAnalytics/streamingjobs', asaJobName)
+    ehNamespaceId: resourceId('Microsoft.EventHub/namespaces', eventHubNamespaceName)
+
+    lawId: observability.outputs.lawId
+    prefix: 'nyctaxi-dev'
+  }
+}
