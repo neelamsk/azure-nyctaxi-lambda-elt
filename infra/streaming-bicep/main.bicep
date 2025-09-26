@@ -148,7 +148,7 @@ module diagnostics './modules/diagnostics.bicep' = {
   params: {
     lawId: observability.outputs.lawId
     asaJobName: asaJobName
-    ehNamespaceName: 'nyctaxi-ehns'         // or your param/var
-    storageAccountName: 'nyctaxistreamsa001' // or your param/var
+    ehNamespaceName: 'nyctaxi-ehns'
+    storageAccountName: 'nyctaxistreamsa001'
   }
 }
