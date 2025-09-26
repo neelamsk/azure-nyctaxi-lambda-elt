@@ -17,9 +17,7 @@ env:
   DATA_LOCALE: en-US
   LATE_SECONDS: 900
   COMPAT_LEVEL: "1.2"
-  # Optional alert email for Bicep (set in repo Variables/Secrets if you want)
   ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
-  # Expose subscription id for REST calls and az cli
   SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
 concurrency:
@@ -58,7 +56,6 @@ jobs:
             for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights; do
               az provider register -n "$rp" -o none || true
             done
-            # Quick wait to avoid sporadic 409s
             for i in {1..20}; do
               ok=1
               for rp in Microsoft.StreamAnalytics Microsoft.EventHub Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights; do
@@ -83,48 +80,53 @@ jobs:
             set -euo pipefail
 
             put_job () {
-              local API="$1"      # e.g. 2021-10-01-preview or 2020-03-01
+              local API="$1"      # 2021-10-01-preview or 2020-03-01
               local SHAPE="$2"    # "top" or "prop"
               local BODY="/tmp/asa-job.json"
 
               if [ "$SHAPE" = "top" ]; then
                 cat > "$BODY" <<JSON
-                {
-                    "location": "$LOCATION",
-                    "identity": { "type": "SystemAssigned" },
-                    "sku": { "name": "Standard" },
-                    "properties": {
-                        "jobType": "Cloud",
-                        "eventsOutOfOrderPolicy": "Adjust",
-                        "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
-                        "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
-                        "dataLocale": "$DATA_LOCALE",
-                        "outputErrorPolicy": "Stop",
-                        "compatibilityLevel": "$COMPAT_LEVEL"
-                    }
-                }
-                JSON
+{
+  "location": "$LOCATION",
+  "identity": { "type": "SystemAssigned" },
+  "sku": { "name": "Standard" },
+  "properties": {
+    "jobType": "Cloud",
+    "eventsOutOfOrderPolicy": "Adjust",
+    "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
+    "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
+    "dataLocale": "$DATA_LOCALE",
+    "outputErrorPolicy": "Stop",
+    "compatibilityLevel": "$COMPAT_LEVEL"
+  }
+}
+JSON
               else
                 cat > "$BODY" <<JSON
-                {
-                "location": "$LOCATION",
-                "identity": { "type": "SystemAssigned" },
-                "properties": {
-                    "sku": { "name": "Standard" },
-                    "jobType": "Cloud",
-                    "eventsOutOfOrderPolicy": "Adjust",
-                    "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
-                    "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
-                    "dataLocale": "$DATA_LOCALE",
-                    "outputErrorPolicy": "Stop",
-                    "compatibilityLevel": "$COMPAT_LEVEL"
-                }
-            }
-            JSON
+{
+  "location": "$LOCATION",
+  "identity": { "type": "SystemAssigned" },
+  "properties": {
+    "sku": { "name": "Standard" },
+    "jobType": "Cloud",
+    "eventsOutOfOrderPolicy": "Adjust",
+    "eventsOutOfOrderMaxDelayInSeconds": $LATE_SECONDS,
+    "eventsLateArrivalMaxDelayInSeconds": $LATE_SECONDS,
+    "dataLocale": "$DATA_LOCALE",
+    "outputErrorPolicy": "Stop",
+    "compatibilityLevel": "$COMPAT_LEVEL"
+  }
+}
+JSON
               fi
 
               local URI="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME?api-version=$API"
-              az rest --method put --uri "$URI" --headers Content-Type=application/json --body @"$BODY" --only-show-errors -o none
+              az rest \
+                --method put \
+                --uri "$URI" \
+                --headers '{Content-Type: application/json}' \
+                --body @"$BODY" \
+                --only-show-errors -o none
             }
 
             echo "Ensuring ASA job $ASA_JOB_NAME exists/updated..."
@@ -139,7 +141,6 @@ jobs:
               put_job 2020-03-01 prop; rc=$?
             fi
 
-            # Only if STILL failing, delete & recreate once
             if [ $rc -ne 0 ]; then
               echo "PUT failed across shapes; deleting and recreating once..."
               az resource delete -g "$RESOURCE_GROUP" -n "$ASA_JOB_NAME" --resource-type Microsoft.StreamAnalytics/streamingjobs
@@ -154,7 +155,6 @@ jobs:
             [ $rc -eq 0 ] || { echo "Failed to create/update ASA job." >&2; exit 1; }
             echo "ASA job ensured."
 
-      # Wait for the system-assigned identity to be ready so RBAC in Bicep succeeds
       - name: Wait for ASA managed identity (principalId)
         id: mi
         uses: azure/cli@v2
@@ -175,7 +175,6 @@ jobs:
               echo "Waiting for principalId... ($i)"; sleep 5
             done
 
-      # Deploy Bicep (LAW + EH/Storage + Alerts). Incremental = updates in place.
       - name: Deploy Bicep (az cli)
         uses: azure/cli@v2
         with:
@@ -192,7 +191,6 @@ jobs:
               --mode Incremental \
               --only-show-errors
 
-      # Stop ASA job after deploy to avoid runtime costs
       - name: Stop ASA job (cost-safe)
         uses: azure/cli@v2
         with:
@@ -210,7 +208,6 @@ jobs:
               *) echo "Unexpected state '$STATE'; skipping stop." ;;
             esac
 
-      # Wire ASA (inputs/outputs/query) and start it
       - name: Wire ASA (inputs/outputs/query) and start it
         uses: azure/cli@v2
         env:
@@ -225,11 +222,10 @@ jobs:
             set -euo pipefail
             bash infra/scripts/asa-wire.sh "$RG" "$ASA" "$EH_NS" "$EH_NAME" "$SA" "$CONTAINER"
 
-      # Verify the storage container exists (debug)
       - name: List storage containers (debug)
         uses: azure/cli@v2
         env:
-          SA: ${{ env.SA }}  # leave optional; step safely skips if unset
+          SA: ${{ env.SA }}
         with:
           inlineScript: |
             set -euo pipefail
