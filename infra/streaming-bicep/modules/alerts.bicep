@@ -70,8 +70,8 @@ resource ehDrop 'Microsoft.Insights/metricAlerts@2018-03-01' = {
     severity: 3
     enabled: true
     scopes: [ ehNamespaceId ]
-    evaluationFrequency: 'PT2M'
-    windowSize: 'PT10M'
+    evaluationFrequency: 'PT5M'  // was PT2M (invalid)
+    windowSize: 'PT15M'          // was PT10M (invalid)
     criteria: {
       'odata.type': 'Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria'
       allOf: [
@@ -94,6 +94,7 @@ resource ehDrop 'Microsoft.Insights/metricAlerts@2018-03-01' = {
     ]
   }
 }
+
 
 resource stg5xx 'Microsoft.Insights/scheduledQueryRules@2022-09-01-preview' = {
   name: '${prefix}-stg-5xx'
