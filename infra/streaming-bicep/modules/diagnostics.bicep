@@ -6,7 +6,7 @@ param asaJobName string
 param ehNamespaceName string
 param storageAccountName string
 
-// mark as existing (no location/sku/kind needed)
+// ===== Existing resources (no location/sku/kind needed)
 resource asa 'Microsoft.StreamAnalytics/streamingjobs@2021-10-01-preview' existing = {
   name: asaJobName
 }
@@ -15,10 +15,13 @@ resource ehns 'Microsoft.EventHub/namespaces@2022-10-01-preview' existing = {
   name: ehNamespaceName
 }
 
-resource stg 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
-  name: storageAccountName
+resource blob 'Microsoft.Storage/storageAccounts/blobServices@2022-09-01' existing = {
+  name: '${storageAccountName}/default'
 }
 
+// ===== Diagnostic settings
+
+// ASA → LAW (all logs + metrics)
 resource diagAsa 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'to-law'
   scope: asa
@@ -33,6 +36,7 @@ resource diagAsa 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   }
 }
 
+// Event Hubs namespace → LAW (all logs + metrics)
 resource diagEh 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'to-law'
   scope: ehns
@@ -47,18 +51,23 @@ resource diagEh 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   }
 }
 
-resource diagStg 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+// Storage (BLOB SERVICE scope) → LAW
+// Use the exact categories your tenant/region reports:
+// Logs: StorageRead, StorageWrite, StorageDelete
+// Metrics: Capacity, Transaction
+resource diagStgBlob 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'to-law'
-  scope: stg
+  scope: blob
   properties: {
     workspaceId: lawId
     logs: [
-      { category: 'BlobRead',  enabled: true }
-      { category: 'BlobWrite', enabled: true }
-      { category: 'BlobDelete', enabled: true }
+      { category: 'StorageRead',  enabled: true }
+      { category: 'StorageWrite', enabled: true }
+      { category: 'StorageDelete', enabled: true }
     ]
     metrics: [
-      { category: 'AllMetrics', enabled: true }
+      { category: 'Capacity',    enabled: true }
+      { category: 'Transaction', enabled: true }
     ]
   }
 }
