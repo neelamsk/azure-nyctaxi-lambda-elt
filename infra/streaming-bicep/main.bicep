@@ -142,3 +142,13 @@ module alerts './modules/alerts.bicep' = {
     prefix: 'nyctaxi-dev'
   }
 }
+
+module diagnostics './modules/diagnostics.bicep' = {
+  name: 'diagnostics'
+  params: {
+    lawId: observability.outputs.lawId
+    asaJobName: asaJobName
+    ehNamespaceName: 'nyctaxi-ehns'         // or your param/var
+    storageAccountName: 'nyctaxistreamsa001' // or your param/var
+  }
+}
