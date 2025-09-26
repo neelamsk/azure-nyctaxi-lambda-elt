@@ -52,8 +52,11 @@ resource diagStg 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   scope: stg
   properties: {
     workspaceId: lawId
+    // Storage doesn't support categoryGroup=allLogs. Use explicit categories:
     logs: [
-      { categoryGroup: 'allLogs', enabled: true }
+      { category: 'StorageRead',  enabled: true }
+      { category: 'StorageWrite', enabled: true }
+      { category: 'StorageDelete', enabled: true }
     ]
     metrics: [
       { category: 'AllMetrics', enabled: true }
