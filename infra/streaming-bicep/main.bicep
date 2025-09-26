@@ -20,6 +20,23 @@ param asaPrincipalId string = ''
 
 var location = resourceGroup().location
 
+@description('LAW name')
+param lawName string = 'nyctaxi-law-dev'
+
+@description('LAW retention days')
+param lawRetentionDays int = 30
+
+module observability './modules/observability.bicep' = {
+  name: 'observability'
+  params: {
+    location: resourceGroup().location
+    lawName: lawName
+    lawRetentionDays: lawRetentionDays
+  }
+}
+
+output lawId string = observability.outputs.lawId
+
 // ---- Storage Account + Container ----
 resource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
@@ -101,3 +118,19 @@ resource raEhRecv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!em
 output storageAccountId string = sa.id
 output eventHubId string = eh.id
 output blobContainerUrl string = 'https://${storageAccountName}.blob.${environment().suffixes.storage}/${saContainer.name}'
+
+@description('Alert email receiver')
+param alertEmail string = 'you@example.com'
+
+module alerts './modules/alerts.bicep' = {
+  name: 'alerts'
+  params: {
+    agName: 'nyctaxi-dev-ag'
+    agEmail: "alertEmail"
+    asaJobId: streamAnalyticsJob.id          // your ASA job resource id
+    ehNamespaceId: eventHubNamespace.id      // your EH namespace id
+    lawId: observability.outputs.lawId       // from Step 2
+    storageAccountId: storageAccount.id
+    prefix: 'nyctaxi-dev'
+  }
+}
