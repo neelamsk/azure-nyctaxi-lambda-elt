@@ -16,6 +16,7 @@ URI_BASE="https://management.azure.com${JOB_ID}"
 
 # 1) Input (Event Hub, MSI auth). Use $Default or pass CONSUMER_GROUP env to override.
 CG="${CONSUMER_GROUP:-\$Default}"   # literal "$Default" unless overridden
+EH_FQDN="${EH_NAMESPACE}.servicebus.windows.net"
 
 echo "Creating ASA input 'inEH' (Event Hub ${EH_NAMESPACE}/${EH_NAME}, CG=${CG})..."
 az rest --method PUT \
@@ -26,11 +27,13 @@ az rest --method PUT \
   "properties": {
     "type": "Stream",
     "datasource": {
-      "type": "Microsoft.EventHub/EventHub",
-      "serviceBusNamespace": "${EH_NAMESPACE}",
-      "eventHubName": "${EH_NAME}",
-      "consumerGroupName": "${CG}",
-      "authenticationMode": "Msi"
+      "type": "Microsoft.ServiceBus/EventHub",
+      "properties": {
+        "fullyQualifiedNamespace": "${EH_FQDN}",
+        "eventHubName": "${EH_NAME}",
+        "consumerGroupName": "${CG}",
+        "authenticationMode": "Msi"
+      }
     },
     "serialization": {
       "type": "Json",
@@ -50,14 +53,16 @@ az rest --method PUT \
   "properties": {
     "datasource": {
       "type": "Microsoft.Storage/Blob",
-      "storageAccounts": [
-        { "accountName": "${SA_NAME}" }
-      ],
-      "container": "${CONTAINER}",
-      "pathPattern": "date={date}/{time}",
-      "dateFormat": "yyyy/MM/dd",
-      "timeFormat": "HH",
-      "authenticationMode": "Msi"
+      "properties": {
+        "storageAccounts": [
+          { "accountName": "${SA_NAME}" }
+        ],
+        "container": "${CONTAINER}",
+        "pathPattern": "date={date}/{time}",
+        "dateFormat": "yyyy/MM/dd",
+        "timeFormat": "HH",
+        "authenticationMode": "Msi"
+      }
     },
     "serialization": {
       "type": "Json",
@@ -70,7 +75,6 @@ JSON
 
 # 3) Transformation/Query
 # Minimal pass-through query: SELECT * INTO [outBlob] FROM [inEH]
-# (You can replace this later with your real query.)
 echo "Creating ASA transformation..."
 az rest --method PUT \
   --uri "${URI_BASE}/transformations/Transformation?api-version=${API}" \
@@ -91,7 +95,7 @@ az rest --method POST \
   --headers Content-Type=application/json \
   --body "{}"
 
-# (Optional) quick poll for state
+# quick poll for state
 for i in {1..20}; do
   state="$(az rest --method GET --uri "${URI_BASE}?api-version=${API}" --query properties.jobState -o tsv || echo "")"
   echo "ASA job state: ${state}"
@@ -100,5 +104,3 @@ for i in {1..20}; do
 done
 
 echo "ASA wiring complete."
-
-
