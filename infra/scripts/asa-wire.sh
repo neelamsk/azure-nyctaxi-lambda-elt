@@ -4,7 +4,7 @@ set -euo pipefail
 # Args (or use env vars if you prefer)
 RG="${1:?resource group}"
 ASA_JOB_NAME="${2:?asa job name}"
-EH_NAMESPACE="${3:?event hub namespace}"     # e.g. nyctaxi-ehns
+EH_NAMESPACE="${3:?event hub namespace}"     # e.g. nyctaxi-ehns  (NO FQDN)
 EH_NAME="${4:?event hub name}"               # e.g. trips
 SA_NAME="${5:?storage account name}"         # e.g. nyctaxistreamsa001
 CONTAINER="${6:-streaming}"                  # default container
@@ -16,7 +16,6 @@ URI_BASE="https://management.azure.com${JOB_ID}"
 
 # 1) Input (Event Hub, MSI auth). Use $Default or pass CONSUMER_GROUP env to override.
 CG="${CONSUMER_GROUP:-\$Default}"   # literal "$Default" unless overridden
-EH_FQDN="${EH_NAMESPACE}.servicebus.windows.net"
 
 echo "Creating ASA input 'inEH' (Event Hub ${EH_NAMESPACE}/${EH_NAME}, CG=${CG})..."
 az rest --method PUT \
@@ -29,7 +28,7 @@ az rest --method PUT \
     "datasource": {
       "type": "Microsoft.ServiceBus/EventHub",
       "properties": {
-        "fullyQualifiedNamespace": "${EH_FQDN}",
+        "serviceBusNamespace": "${EH_NAMESPACE}",
         "eventHubName": "${EH_NAME}",
         "consumerGroupName": "${CG}",
         "authenticationMode": "Msi"
@@ -74,7 +73,6 @@ az rest --method PUT \
 JSON
 
 # 3) Transformation/Query
-# Minimal pass-through query: SELECT * INTO [outBlob] FROM [inEH]
 echo "Creating ASA transformation..."
 az rest --method PUT \
   --uri "${URI_BASE}/transformations/Transformation?api-version=${API}" \
@@ -95,7 +93,7 @@ az rest --method POST \
   --headers Content-Type=application/json \
   --body "{}"
 
-# quick poll for state
+# (Optional) quick poll for state
 for i in {1..20}; do
   state="$(az rest --method GET --uri "${URI_BASE}?api-version=${API}" --query properties.jobState -o tsv || echo "")"
   echo "ASA job state: ${state}"
