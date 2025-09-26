@@ -199,15 +199,36 @@ jobs:
               --mode Incremental \
               --only-show-errors
 
-      # Optional: stop ASA job after deploy to avoid runtime costs
+      # Stop ASA job after deploy to avoid runtime costs
       - name: Stop ASA job (cost-safe)
         uses: azure/cli@v2
         with:
           inlineScript: |
             set -euo pipefail
-            az rest --method post \
-              --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.StreamAnalytics/streamingjobs/$ASA_JOB_NAME/stop?api-version=2021-10-01-preview" \
-              -o none || true
+            JOB_URI="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.StreamAnalytics/streamingjobs/${ASA_JOB_NAME}"
+            API="2021-10-01-preview"
+            
+            # Read current job state (may be empty if job not found yet)
+            STATE=$(az rest --method get \
+            --uri "${JOB_URI}?api-version=${API}" \
+            --query "properties.jobState" -o tsv 2>/dev/null || echo "")
+
+            echo "ASA job state: ${STATE:-<unknown>}"
+
+            case "$STATE" in
+                Created|"")
+                echo "Job state '$STATE' -> stop not applicable. Skipping."
+                ;;
+                Idle|Processing|Degraded|Starting|Restarting|Scaling)
+                echo "Stopping job..."
+                az rest --method post \
+                    --uri "${JOB_URI}/stop?api-version=${API}" \
+                    -o none || true
+                ;;
+                *)
+                echo "Unexpected state '$STATE'; skipping stop."
+                ;;
+            esac
 
     # add input/output the ASA Job
       - name: Wire ASA (inputs/outputs/query) and start it
@@ -224,3 +245,16 @@ jobs:
             set -euo pipefail
             bash infra/scripts/asa-wire.sh "$RG" "$ASA" "$EH_NS" "$EH_NAME" "$SA" "$CONTAINER"
             
+      # Optional: verify the storage container exists (debug)
+      - name: List storage containers (debug)
+        uses: azure/cli@v2
+        env:
+          SA: ${{ env.SA }}              # ensure SA is set at job/env level (e.g., nyctaxistreamsa001)
+        with:
+          inlineScript: |
+            set -euo pipefail
+            if [ -z "${SA:-}" ]; then
+              echo "SA env var not set; skipping debug." ; exit 0
+            fi
+            KEY=$(az storage account keys list -g "$RESOURCE_GROUP" -n "$SA" --query '[0].value' -o tsv)
+            az storage container list --account-name "$SA" --account-key "$KEY" -o table
