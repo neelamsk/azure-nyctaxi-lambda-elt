@@ -30,7 +30,7 @@ resource ag 'Microsoft.Insights/actionGroups@2023-01-01' = {
 }
 
 // ASA output errors via KQL (logs), 5-min eval / 15-min window
-resource asaErrorsKql 'Microsoft.Insights/scheduledQueryRules@2022-09-01-preview' = {
+resource asaErrorsKql 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
   name: '${prefix}-asa-output-errors-kql'
   location: location
   properties: {
@@ -101,7 +101,7 @@ resource ehDrop 'Microsoft.Insights/metricAlerts@2018-03-01' = {
 }
 
 
-resource stg5xx 'Microsoft.Insights/scheduledQueryRules@2022-09-01-preview' = {
+resource stg5xx 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
   name: '${prefix}-stg-5xx'
   location: location
   properties: {
