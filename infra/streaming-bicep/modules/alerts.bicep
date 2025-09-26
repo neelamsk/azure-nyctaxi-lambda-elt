@@ -1,4 +1,4 @@
-param location string = resourceGroup().location 
+param location string = resourceGroup().location
 
 @description('Action group name')
 param agName string
@@ -29,54 +29,16 @@ resource ag 'Microsoft.Insights/actionGroups@2023-01-01' = {
   }
 }
 
-// ASA output errors via KQL (logs), 5-min eval / 15-min window
-resource asaErrorsKql 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
-  name: '${prefix}-asa-output-errors-kql'
-  location: location
-  properties: {
-    displayName: 'ASA Output Errors (logs)'
-    description: 'Alerts when ASA emits output errors in Execution logs'
-    enabled: true
-    scopes: [ lawId ]  // workspace-scoped rule
-    evaluationFrequency: 'PT5M'
-    windowSize: 'PT15M'
-    severity: 2
-    condition: {
-      allOf: [
-        {
-          query: '''
-AzureDiagnostics
-| where ResourceProvider == "MICROSOFT.STREAMANALYTICS"
-| where Category == "Execution"
-| where Message has "OutputError"
-'''
-          timeAggregation: 'Count'
-          operator: 'GreaterThan'
-          threshold: 0
-          failingPeriods: { numberOfEvaluationPeriods: 1, minFailingPeriodsToAlert: 1 }
-        }
-      ]
-    }
-    actions: {
-      // IMPORTANT: array of STRING IDs (not objects)
-      actionGroups: [
-        ag.id
-      ]
-    }
-  }
-}
-
-
 resource ehDrop 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: '${prefix}-eh-incoming-drop'
   location: 'global'
   properties: {
-    description: 'Event Hubs IncomingMessages == 0 for 10 min'
+    description: 'Event Hubs IncomingMessages == 0 for 15 min'
     severity: 3
     enabled: true
     scopes: [ ehNamespaceId ]
-    evaluationFrequency: 'PT5M'  // was PT2M (invalid)
-    windowSize: 'PT15M'          // was PT10M (invalid)
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
     criteria: {
       'odata.type': 'Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria'
       allOf: [
@@ -100,38 +62,80 @@ resource ehDrop 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   }
 }
 
+var asaErrorsKql = '''
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.STREAMANALYTICS"
+| where Category == "Execution"
+| where Message has "OutputError"
+'''
 
-resource stg5xx 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
-  name: '${prefix}-stg-5xx'
+resource asaOutputErrors 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
+  name: '${prefix}-asa-output-errors-kql'
   location: location
+  kind: 'LogAlert'
   properties: {
-    displayName: 'Storage 5xx in 15m'
-    description: 'Alerts on any 5xx from Blob read/write in last 15 minutes'
+    description: 'ASA output errors > 0'
     enabled: true
-    scopes: [ lawId ] // LAW-scoped log alert
+    severity: 2
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    severity: 3
-    condition: {
+    scopes: [ lawId ] // LAW resource ID
+    criteria: {
       allOf: [
         {
-          query: '''
+          query: asaErrorsKql
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      // If you ever get a type error here, switch to object form:
+      // actionGroups: [ { actionGroupId: ag.id } ]
+      actionGroups: [ ag.id ]
+    }
+  }
+}
+
+var stg5xxKql = '''
 AzureDiagnostics
 | where ResourceProvider == "MICROSOFT.STORAGE"
 | where Category in ("StorageRead","StorageWrite")
 | where toint(httpStatusCode_s) between (500 .. 599)
 '''
+
+resource stg5xx 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
+  name: '${prefix}-stg-5xx'
+  location: location
+  kind: 'LogAlert'
+  properties: {
+    description: 'Storage 5xx in 15m'
+    enabled: true
+    severity: 3
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    scopes: [ lawId ]
+    criteria: {
+      allOf: [
+        {
+          query: stg5xxKql
           timeAggregation: 'Count'
           operator: 'GreaterThan'
           threshold: 0
-          failingPeriods: { numberOfEvaluationPeriods: 1, minFailingPeriodsToAlert: 1 }
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
         }
       ]
     }
     actions: {
-    actionGroups: [
-        ag.id
-        ]
+      actionGroups: [ ag.id ]
     }
   }
 }
