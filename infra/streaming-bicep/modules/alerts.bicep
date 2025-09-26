@@ -104,9 +104,17 @@ resource asaOutputErrors 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
 
 var stg5xxKql = '''
 AzureDiagnostics
-| where ResourceProvider == "MICROSOFT.STORAGE"
+| where ResourceProvider =~ "MICROSOFT.STORAGE"
 | where Category in ("StorageRead","StorageWrite")
-| where toint(httpStatusCode_s) between (500 .. 599)
+| extend status =
+    toint(tolong(
+      column_ifexists("httpStatusCode_s",
+      column_ifexists("HttpStatusCode_s",
+      column_ifexists("statusCode_s",
+      column_ifexists("statusCode_d",
+      column_ifexists("StatusCode", 0))))))
+    )
+| where status >= 500 and status <= 599
 '''
 
 resource stg5xx 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
