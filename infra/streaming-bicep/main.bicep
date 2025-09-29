@@ -166,3 +166,14 @@ module lifecycle './modules/storage-lifecycle.bicep' = {
     ]
   }
 }
+
+module streamingContainers './modules/storage-containers.bicep' = {
+  name: 'streaming-containers'
+  params: {
+    storageAccountName: 'nyctaxistreamsa001' // or your param/var
+    containerNames: [
+      'streaming-curated'
+      'streaming-dlq'
+    ]
+  }
+}
