@@ -114,6 +114,9 @@ az rest --method PUT \
       "properties": {
         "storageAccounts": [ { "accountName": "${SA_NAME}" } ],
         "container": "streaming-curated",
+        "pathPattern": "date={date}/{time}",
+        "dateFormat": "yyyy/MM/dd",
+        "timeFormat": "HH",
         "authenticationMode": "Msi"
       }
     },
