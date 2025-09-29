@@ -155,11 +155,11 @@ JSON
 QUERY=$(cat <<'SQL'
 WITH parsed AS (
   SELECT
-    CAST(GetRecordPropertyValue(input, 'schemaVersion') AS NVARCHAR(10)) AS schemaVersion,
-    CAST(GetRecordPropertyValue(input, 'eventId') AS NVARCHAR(64))        AS eventId,
+    CAST(GetRecordPropertyValue(input, 'schemaVersion') AS NVARCHAR(MAX)) AS schemaVersion,
+    CAST(GetRecordPropertyValue(input, 'eventId') AS NVARCHAR(MAX))        AS eventId,
     CAST(GetRecordPropertyValue(input, 'tpepPickupDatetime') AS DATETIME)  AS tpepPickupDatetime,
     CAST(GetRecordPropertyValue(input, 'tpepDropoffDatetime') AS DATETIME) AS tpepDropoffDatetime,
-    CAST(GetRecordPropertyValue(input, 'vendorId') AS NVARCHAR(20))        AS vendorId,
+    CAST(GetRecordPropertyValue(input, 'vendorId') AS NVARCHAR(MAX))        AS vendorId,
     CAST(GetRecordPropertyValue(input, 'passengerCount') AS BIGINT)        AS passengerCount,
     CAST(GetRecordPropertyValue(input, 'tripDistance') AS FLOAT)           AS tripDistance,
     CAST(GetRecordPropertyValue(input, 'puLocationId') AS BIGINT)          AS puLocationId,
@@ -172,7 +172,7 @@ WITH parsed AS (
     CAST(GetRecordPropertyValue(input, 'extra') AS FLOAT)                  AS extra,
     CAST(GetRecordPropertyValue(input, 'totalAmount') AS FLOAT)            AS totalAmount,
     CAST(GetRecordPropertyValue(input, 'paymentType') AS BIGINT)           AS paymentType,
-    CAST(GetRecordPropertyValue(input, 'source') AS NVARCHAR(50))          AS source,
+    CAST(GetRecordPropertyValue(input, 'source') AS NVARCHAR(MAX))          AS source,
     CAST(GetRecordPropertyValue(input, 'producerTs') AS DATETIME)          AS producerTs,
     System.Timestamp                                                       AS enqueuedTs
   FROM [inEH] AS input
