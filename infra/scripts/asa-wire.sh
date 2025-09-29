@@ -133,6 +133,7 @@ JSON
 
 # 4) Output: DLQ JSON to streaming-dlq (MSI)
 echo "Creating ASA output 'outDlqJson' (Storage ${SA_NAME}/streaming-dlq)..."
+echo "Creating ASA output 'outDlqJson' (Storage ${SA_NAME}/streaming-dlq)..."
 az rest --method PUT \
   --uri "${URI_BASE}/outputs/outDlqJson?api-version=${API_OUT}" \
   --headers "${HEADERS}" \
@@ -144,6 +145,9 @@ az rest --method PUT \
       "properties": {
         "storageAccounts": [ { "accountName": "${SA_NAME}" } ],
         "container": "streaming-dlq",
+        "pathPattern": "date={date}/{time}",
+        "dateFormat": "yyyy/MM/dd",
+        "timeFormat": "HH",
         "authenticationMode": "Msi"
       }
     },
