@@ -1,0 +1,130 @@
+{
+	"name": "ds_trips_stg",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_syn_sql",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlDWTable",
+		"schema": [
+			{
+				"name": "schemaVersion",
+				"type": "nvarchar"
+			},
+			{
+				"name": "eventId",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tpepPickupDatetime",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "tpepDropoffDatetime",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "vendorId",
+				"type": "nvarchar"
+			},
+			{
+				"name": "passengerCount",
+				"type": "bigint",
+				"precision": 19
+			},
+			{
+				"name": "tripDistance",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "puLocationId",
+				"type": "bigint",
+				"precision": 19
+			},
+			{
+				"name": "doLocationId",
+				"type": "bigint",
+				"precision": 19
+			},
+			{
+				"name": "fareAmount",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "tipAmount",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "tollsAmount",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "improvementSurcharge",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "mtaTax",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "extra",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "totalAmount",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "paymentType",
+				"type": "nvarchar"
+			},
+			{
+				"name": "source",
+				"type": "nvarchar"
+			},
+			{
+				"name": "producerTs",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "enqueuedTs",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "durationMin",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "_ingestedAt",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "_blobPath",
+				"type": "nvarchar"
+			},
+			{
+				"name": "_runId",
+				"type": "nvarchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "stg",
+			"table": "TripsStreaming"
+		}
+	}
+}
