@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# set -x  # (optional) uncomment for one-run debug
+# set -x  # (optional) debug
 
 # Args
 RG="${1:?resource group}"
@@ -43,7 +43,7 @@ if [[ -n "${STATE}" && "${STATE}" != "Created" && "${STATE}" != "Stopped" && "${
 fi
 
 # 1) Input: Event Hub (MSI auth). Use $Default or override via CONSUMER_GROUP env
-CG="${CONSUMER_GROUP:-\$Default}"   # literal "$Default" unless overridden
+CG="${CONSUMER_GROUP:-\$Default}"
 
 echo "Creating ASA input 'inEH' (Event Hub ${EH_NAMESPACE}/${EH_NAME}, CG=${CG})..."
 az rest --method PUT \
@@ -70,7 +70,7 @@ az rest --method PUT \
 }
 JSON
 
-# 2) Output: raw JSON lines to ${CONTAINER} (with date/hour partitioning)
+# 2) Output: raw JSON lines to ${CONTAINER}
 echo "Creating ASA output 'outBlob' (Storage ${SA_NAME}/${CONTAINER})..."
 az rest --method PUT \
   --uri "${URI_BASE}/outputs/outBlob?api-version=${API_OUT}" \
@@ -97,7 +97,7 @@ az rest --method PUT \
 }
 JSON
 
-# 3) Output: curated CSV to streaming-curated (MSI)
+# 3) Output: curated CSV to streaming-curated
 echo "Creating ASA output 'outCuratedCsv' (Storage ${SA_NAME}/streaming-curated)..."
 az rest --method PUT \
   --uri "${URI_BASE}/outputs/outCuratedCsv?api-version=${API_OUT}" \
@@ -124,7 +124,7 @@ az rest --method PUT \
 }
 JSON
 
-# 4) Output: DLQ JSON to streaming-dlq (MSI)
+# 4) Output: DLQ JSON to streaming-dlq
 echo "Creating ASA output 'outDlqJson' (Storage ${SA_NAME}/streaming-dlq)..."
 az rest --method PUT \
   --uri "${URI_BASE}/outputs/outDlqJson?api-version=${API_OUT}" \
@@ -151,37 +151,56 @@ az rest --method PUT \
 }
 JSON
 
-# 5) Transformation/Query: parse → curated CSV, DLQ JSON, keep raw pass-through
+# 5) Transformation: accept snake_case and camelCase; relax required to timestamps
 QUERY=$(cat <<'SQL'
 WITH parsed AS (
   SELECT
-    CAST(GetRecordPropertyValue(input, 'schemaVersion') AS NVARCHAR(MAX)) AS schemaVersion,
-    CAST(GetRecordPropertyValue(input, 'eventId') AS NVARCHAR(MAX))        AS eventId,
-    CAST(GetRecordPropertyValue(input, 'tpepPickupDatetime') AS DATETIME)  AS tpepPickupDatetime,
-    CAST(GetRecordPropertyValue(input, 'tpepDropoffDatetime') AS DATETIME) AS tpepDropoffDatetime,
-    CAST(GetRecordPropertyValue(input, 'vendorId') AS NVARCHAR(MAX))        AS vendorId,
-    CAST(GetRecordPropertyValue(input, 'passengerCount') AS BIGINT)        AS passengerCount,
-    CAST(GetRecordPropertyValue(input, 'tripDistance') AS FLOAT)           AS tripDistance,
-    CAST(GetRecordPropertyValue(input, 'puLocationId') AS BIGINT)          AS puLocationId,
-    CAST(GetRecordPropertyValue(input, 'doLocationId') AS BIGINT)          AS doLocationId,
-    CAST(GetRecordPropertyValue(input, 'fareAmount') AS FLOAT)             AS fareAmount,
-    CAST(GetRecordPropertyValue(input, 'tipAmount') AS FLOAT)              AS tipAmount,
-    CAST(GetRecordPropertyValue(input, 'tollsAmount') AS FLOAT)            AS tollsAmount,
-    CAST(GetRecordPropertyValue(input, 'improvementSurcharge') AS FLOAT)   AS improvementSurcharge,
-    CAST(GetRecordPropertyValue(input, 'mtaTax') AS FLOAT)                 AS mtaTax,
-    CAST(GetRecordPropertyValue(input, 'extra') AS FLOAT)                  AS extra,
-    CAST(GetRecordPropertyValue(input, 'totalAmount') AS FLOAT)            AS totalAmount,
-    CAST(GetRecordPropertyValue(input, 'paymentType') AS BIGINT)           AS paymentType,
-    CAST(GetRecordPropertyValue(input, 'source') AS NVARCHAR(MAX))          AS source,
-    CAST(GetRecordPropertyValue(input, 'producerTs') AS DATETIME)          AS producerTs,
-    System.Timestamp                                                       AS enqueuedTs
+    CAST(COALESCE(GetRecordPropertyValue(input,'schemaVersion'),
+                  GetRecordPropertyValue(input,'schema_version')) AS NVARCHAR(MAX)) AS schemaVersion,
+    CAST(COALESCE(GetRecordPropertyValue(input,'eventId'),
+                  GetRecordPropertyValue(input,'event_id')) AS NVARCHAR(MAX))        AS eventId,
+    CAST(COALESCE(GetRecordPropertyValue(input,'tpepPickupDatetime'),
+                  GetRecordPropertyValue(input,'pickup_datetime')) AS DATETIME)      AS tpepPickupDatetime,
+    CAST(COALESCE(GetRecordPropertyValue(input,'tpepDropoffDatetime'),
+                  GetRecordPropertyValue(input,'dropoff_datetime')) AS DATETIME)     AS tpepDropoffDatetime,
+    CAST(COALESCE(GetRecordPropertyValue(input,'vendorId'),
+                  GetRecordPropertyValue(input,'vendor_id')) AS NVARCHAR(MAX))       AS vendorId,
+    CAST(COALESCE(GetRecordPropertyValue(input,'passengerCount'),
+                  GetRecordPropertyValue(input,'passenger_count')) AS BIGINT)        AS passengerCount,
+    CAST(COALESCE(GetRecordPropertyValue(input,'tripDistance'),
+                  GetRecordPropertyValue(input,'trip_distance')) AS FLOAT)           AS tripDistance,
+    CAST(COALESCE(GetRecordPropertyValue(input,'puLocationId'),
+                  GetRecordPropertyValue(input,'PULocationID'),
+                  GetRecordPropertyValue(input,'pu_location_id')) AS BIGINT)         AS puLocationId,
+    CAST(COALESCE(GetRecordPropertyValue(input,'doLocationId'),
+                  GetRecordPropertyValue(input,'DOLocationID'),
+                  GetRecordPropertyValue(input,'do_location_id')) AS BIGINT)         AS doLocationId,
+    CAST(COALESCE(GetRecordPropertyValue(input,'fareAmount'),
+                  GetRecordPropertyValue(input,'fare_amount')) AS FLOAT)             AS fareAmount,
+    CAST(COALESCE(GetRecordPropertyValue(input,'tipAmount'),
+                  GetRecordPropertyValue(input,'tip_amount')) AS FLOAT)              AS tipAmount,
+    CAST(COALESCE(GetRecordPropertyValue(input,'tollsAmount'),
+                  GetRecordPropertyValue(input,'tolls_amount')) AS FLOAT)            AS tollsAmount,
+    CAST(COALESCE(GetRecordPropertyValue(input,'improvementSurcharge'),
+                  GetRecordPropertyValue(input,'improvement_surcharge')) AS FLOAT)   AS improvementSurcharge,
+    CAST(COALESCE(GetRecordPropertyValue(input,'mtaTax'),
+                  GetRecordPropertyValue(input,'mta_tax')) AS FLOAT)                 AS mtaTax,
+    CAST(GetRecordPropertyValue(input,'extra') AS FLOAT)                              AS extra,
+    CAST(COALESCE(GetRecordPropertyValue(input,'totalAmount'),
+                  GetRecordPropertyValue(input,'total_amount')) AS FLOAT)            AS totalAmount,
+    CAST(COALESCE(GetRecordPropertyValue(input,'paymentType'),
+                  GetRecordPropertyValue(input,'payment_type')) AS NVARCHAR(MAX))    AS paymentType,
+    CAST(GetRecordPropertyValue(input,'source') AS NVARCHAR(MAX))                    AS source,
+    CAST(COALESCE(GetRecordPropertyValue(input,'producerTs'),
+                  GetRecordPropertyValue(input,'producer_ts')) AS DATETIME)          AS producerTs,
+    System.Timestamp                                                                 AS enqueuedTs
   FROM [inEH] AS input
 ),
 enriched AS (
   SELECT
     *,
     DATEDIFF(minute, tpepPickupDatetime, tpepDropoffDatetime) AS durationMin,
-    CASE WHEN eventId IS NULL OR tpepPickupDatetime IS NULL OR tpepDropoffDatetime IS NULL
+    CASE WHEN tpepPickupDatetime IS NULL OR tpepDropoffDatetime IS NULL
          THEN 1 ELSE 0 END AS missingRequired,
     CASE WHEN tripDistance < 0 OR fareAmount < 0 OR totalAmount < 0
          THEN 1 ELSE 0 END AS negativeValues,
@@ -191,7 +210,7 @@ enriched AS (
   FROM parsed
 )
 
--- 1) curated CSV (ordered columns)
+/* 1) curated CSV */
 SELECT
   schemaVersion, eventId, tpepPickupDatetime, tpepDropoffDatetime, vendorId,
   passengerCount, tripDistance, puLocationId, doLocationId,
@@ -201,7 +220,7 @@ INTO [outCuratedCsv]
 FROM enriched
 WHERE missingRequired = 0 AND negativeValues = 0 AND badDuration = 0;
 
--- 2) rejects → DLQ (include a compact reason)
+/* 2) rejects → DLQ with reason */
 SELECT
   eventId,
   tpepPickupDatetime,
@@ -221,7 +240,7 @@ INTO [outDlqJson]
 FROM enriched
 WHERE missingRequired = 1 OR negativeValues = 1 OR badDuration = 1;
 
--- 3) keep raw pass-through (unchanged)
+/* 3) keep raw */
 SELECT * INTO [outBlob] FROM [inEH];
 SQL
 )
