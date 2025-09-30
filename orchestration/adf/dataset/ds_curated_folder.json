@@ -1,0 +1,23 @@
+{
+	"name": "ds_curated_folder",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_storage_curated",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"dir": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"folderPath": "@dataset().dir",
+				"container": "streaming-curated"
+			}
+		}
+	}
+}
