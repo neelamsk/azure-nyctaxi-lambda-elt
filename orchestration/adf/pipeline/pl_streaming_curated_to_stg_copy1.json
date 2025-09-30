@@ -7,7 +7,7 @@
 				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "FilterFiles",
+						"activity": "IfHourExists",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('FilterFiles').output.Value",
+						"value": "@variables('files')",
 						"type": "Expression"
 					},
 					"batchCount": 4,
@@ -556,14 +556,7 @@
 			{
 				"name": "FilterFiles",
 				"type": "Filter",
-				"dependsOn": [
-					{
-						"activity": "IfHourExists",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
