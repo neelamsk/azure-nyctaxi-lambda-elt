@@ -117,6 +117,272 @@
 								},
 								"translator": {
 									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 1
+											},
+											"sink": {
+												"name": "schemaVersion",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 2
+											},
+											"sink": {
+												"name": "eventId",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 3
+											},
+											"sink": {
+												"name": "tpepPickupDatetime",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 4
+											},
+											"sink": {
+												"name": "tpepDropoffDatetime",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 5
+											},
+											"sink": {
+												"name": "vendorId",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 6
+											},
+											"sink": {
+												"name": "passengerCount",
+												"type": "Int64",
+												"physicalType": "bigint"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 7
+											},
+											"sink": {
+												"name": "tripDistance",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 8
+											},
+											"sink": {
+												"name": "puLocationId",
+												"type": "Int64",
+												"physicalType": "bigint"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 9
+											},
+											"sink": {
+												"name": "doLocationId",
+												"type": "Int64",
+												"physicalType": "bigint"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 10
+											},
+											"sink": {
+												"name": "fareAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 11
+											},
+											"sink": {
+												"name": "tipAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 12
+											},
+											"sink": {
+												"name": "tollsAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 13
+											},
+											"sink": {
+												"name": "improvementSurcharge",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 14
+											},
+											"sink": {
+												"name": "mtaTax",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 15
+											},
+											"sink": {
+												"name": "extra",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 16
+											},
+											"sink": {
+												"name": "totalAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 17
+											},
+											"sink": {
+												"name": "paymentType",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 18
+											},
+											"sink": {
+												"name": "source",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 19
+											},
+											"sink": {
+												"name": "producerTs",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 20
+											},
+											"sink": {
+												"name": "enqueuedTs",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 21
+											},
+											"sink": {
+												"name": "durationMin",
+												"type": "Int32",
+												"physicalType": "int"
+											}
+										},
+										{
+											"source": {
+												"name": "_runId",
+												"type": "String"
+											},
+											"sink": {
+												"name": "_runId",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"name": "_blobPath",
+												"type": "String"
+											},
+											"sink": {
+												"name": "_blobPath",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"name": "_ingestedAt",
+												"type": "String"
+											},
+											"sink": {
+												"name": "_ingestedAt",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										}
+									],
 									"typeConversion": true,
 									"typeConversionSettings": {
 										"allowDataTruncation": true,
