@@ -631,13 +631,36 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@coalesce(activity('GetFiles').output.childItems, json('[]'))",
+						"value": "@variables('files')",
 						"type": "Expression"
 					},
 					"condition": {
 						"value": "@equals(item().type, 'File')",
 						"type": "Expression"
 					}
+				}
+			},
+			{
+				"name": "SetFilesEmpty",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "GetFiles",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "files",
+					"value": [
+						"@json('[]')"
+					]
 				}
 			}
 		],
