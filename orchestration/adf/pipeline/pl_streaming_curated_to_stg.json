@@ -3,8 +3,8 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "CopyDatafromCurated",
-				"type": "Copy",
+				"name": "GetFiles",
+				"type": "GetMetadata",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -15,289 +15,661 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"source": {
-						"type": "DelimitedTextSource",
-						"additionalColumns": [
-							{
-								"name": "_runId",
-								"value": "@pipeline().RunId"
-							},
-							{
-								"name": "_blobPath",
-								"value": "@{item().path}"
-							}
-						],
-						"storeSettings": {
-							"type": "AzureBlobStorageReadSettings",
-							"recursive": true,
-							"wildcardFolderPath": "*",
-							"enablePartitionDiscovery": false
-						},
-						"formatSettings": {
-							"type": "DelimitedTextReadSettings"
+					"dataset": {
+						"referenceName": "ds_curated_folder",
+						"type": "DatasetReference",
+						"parameters": {
+							"dir": "@variables('hourPath')"
 						}
 					},
-					"sink": {
-						"type": "SqlDWSink",
-						"allowCopyCommand": true
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
 					},
-					"enableStaging": false,
-					"translator": {
-						"type": "TabularTranslator",
-						"mappings": [
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 1
-								},
-								"sink": {
-									"name": "schemaVersion",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 2
-								},
-								"sink": {
-									"name": "eventId",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 3
-								},
-								"sink": {
-									"name": "tpepPickupDatetime",
-									"type": "DateTime"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 4
-								},
-								"sink": {
-									"name": "tpepDropoffDatetime",
-									"type": "DateTime"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 5
-								},
-								"sink": {
-									"name": "vendorId",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 6
-								},
-								"sink": {
-									"name": "passengerCount",
-									"type": "Int64"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 7
-								},
-								"sink": {
-									"name": "tripDistance",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 8
-								},
-								"sink": {
-									"name": "puLocationId",
-									"type": "Int64"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 9
-								},
-								"sink": {
-									"name": "doLocationId",
-									"type": "Int64"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 10
-								},
-								"sink": {
-									"name": "fareAmount",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 11
-								},
-								"sink": {
-									"name": "tipAmount",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 12
-								},
-								"sink": {
-									"name": "tollsAmount",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 13
-								},
-								"sink": {
-									"name": "improvementSurcharge",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 14
-								},
-								"sink": {
-									"name": "mtaTax",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 15
-								},
-								"sink": {
-									"name": "extra",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 16
-								},
-								"sink": {
-									"name": "totalAmount",
-									"type": "Double"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 17
-								},
-								"sink": {
-									"name": "paymentType",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 18
-								},
-								"sink": {
-									"name": "source",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 19
-								},
-								"sink": {
-									"name": "producerTs",
-									"type": "DateTime"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 20
-								},
-								"sink": {
-									"name": "enqueuedTs",
-									"type": "DateTime"
-								}
-							},
-							{
-								"source": {
-									"type": "String",
-									"ordinal": 21
-								},
-								"sink": {
-									"name": "durationMin",
-									"type": "Int32"
-								}
-							},
-							{
-								"source": {
-									"name": "_runId",
-									"type": "String"
-								},
-								"sink": {
-									"name": "_ingestedAt",
-									"type": "DateTime"
-								}
-							},
-							{
-								"source": {
-									"name": "_blobPath",
-									"type": "String"
-								},
-								"sink": {
-									"name": "_blobPath",
-									"type": "String"
-								}
-							},
-							{
-								"sink": {
-									"name": "_runId",
-									"type": "String"
-								}
-							}
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "SetFiles",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "GetFiles",
+						"dependencyConditions": [
+							"Succeeded"
 						]
 					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
 				},
-				"inputs": [
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "files",
+					"value": {
+						"value": "@coalesce(activity('GetFiles').output.childItems, json('[]'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEachFile",
+				"type": "ForEach",
+				"dependsOn": [
 					{
-						"referenceName": "ds_curated_csv",
-						"type": "DatasetReference"
+						"activity": "SetFiles",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
-				"outputs": [
-					{
-						"referenceName": "ds_trips_stg",
-						"type": "DatasetReference"
-					}
-				]
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@if(equals(variables('files'), null), json('[]'), variables('files'))",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "DeleteExisting",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[stg].[usp_delete_trips_by_blob]",
+								"storedProcedureParameters": {
+									"blobPath": {
+										"value": {
+											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_syn_sql",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "CopyCuratedToStg",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "DeleteExisting",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"additionalColumns": [
+										{
+											"name": "_runId",
+											"value": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "_blobPath",
+											"value": {
+												"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+												"type": "Expression"
+											}
+										}
+									],
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "SqlDWSink",
+									"writeBehavior": "Insert",
+									"sqlWriterUseTableLock": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 1
+											},
+											"sink": {
+												"name": "schemaVersion",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 2
+											},
+											"sink": {
+												"name": "eventId",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 3
+											},
+											"sink": {
+												"name": "tpepPickupDatetime",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 4
+											},
+											"sink": {
+												"name": "tpepDropoffDatetime",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 5
+											},
+											"sink": {
+												"name": "vendorId",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 6
+											},
+											"sink": {
+												"name": "passengerCount",
+												"type": "Int64",
+												"physicalType": "bigint"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 7
+											},
+											"sink": {
+												"name": "tripDistance",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 8
+											},
+											"sink": {
+												"name": "puLocationId",
+												"type": "Int64",
+												"physicalType": "bigint"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 9
+											},
+											"sink": {
+												"name": "doLocationId",
+												"type": "Int64",
+												"physicalType": "bigint"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 10
+											},
+											"sink": {
+												"name": "fareAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 11
+											},
+											"sink": {
+												"name": "tipAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 12
+											},
+											"sink": {
+												"name": "tollsAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 13
+											},
+											"sink": {
+												"name": "improvementSurcharge",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 14
+											},
+											"sink": {
+												"name": "mtaTax",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 15
+											},
+											"sink": {
+												"name": "extra",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 16
+											},
+											"sink": {
+												"name": "totalAmount",
+												"type": "Double",
+												"physicalType": "float"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 17
+											},
+											"sink": {
+												"name": "paymentType",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 18
+											},
+											"sink": {
+												"name": "source",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 19
+											},
+											"sink": {
+												"name": "producerTs",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 20
+											},
+											"sink": {
+												"name": "enqueuedTs",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"type": "String",
+												"ordinal": 21
+											},
+											"sink": {
+												"name": "durationMin",
+												"type": "Int32",
+												"physicalType": "int"
+											}
+										},
+										{
+											"source": {
+												"name": "_runId",
+												"type": "String"
+											},
+											"sink": {
+												"name": "_ingestedAt",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"name": "_blobPath",
+												"type": "String"
+											},
+											"sink": {
+												"name": "_blobPath",
+												"type": "String",
+												"physicalType": "nvarchar"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_curated_csv",
+									"type": "DatasetReference",
+									"parameters": {
+										"dir": {
+											"value": "@variables('hourPath')",
+											"type": "Expression"
+										},
+										"file": "@item().name"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_trips_stg",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "LogSuccess",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "CopyCuratedToStg",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[stg].[usp_log_ingest]",
+								"storedProcedureParameters": {
+									"blobPath": {
+										"value": {
+											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"message": {
+										"value": " ",
+										"type": "String"
+									},
+									"rowsCopied": {
+										"value": {
+											"value": "@coalesce(activity('CopyCuratedToStg').output.rowsCopied, 0)",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									},
+									"runId": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"status": {
+										"value": "Success",
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_syn_sql",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "LogFailure",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "CopyCuratedToStg",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[stg].[usp_log_ingest]",
+								"storedProcedureParameters": {
+									"blobPath": {
+										"value": {
+											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"message": {
+										"value": {
+											"value": "@string(activity('CopyCuratedToStg').error.message)",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"rowsCopied": {
+										"value": "0",
+										"type": "Int64"
+									},
+									"runId": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"status": {
+										"value": "Failure",
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_syn_sql",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "LogDeleteFailure",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "DeleteExisting",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[stg].[usp_log_ingest]",
+								"storedProcedureParameters": {
+									"blobPath": {
+										"value": {
+											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"message": {
+										"value": {
+											"value": "@string(activity('DeleteExisting').error.message)",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"rowsCopied": {
+										"value": "0",
+										"type": "Int64"
+									},
+									"runId": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"status": {
+										"value": "Failure",
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_syn_sql",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "SetHourPath",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "hourPath",
+					"value": "@concat(\n  'date=',\n  formatDateTime(utcnow(),'yyyy'), '/',\n  formatDateTime(utcnow(),'MM'), '/',\n  formatDateTime(utcnow(),'dd'), '/',\n  formatDateTime(utcnow(),'HH')\n)\n"
+				}
 			}
 		],
+		"parameters": {
+			"curatedContainer": {
+				"type": "string",
+				"defaultValue": "streaming-curated"
+			},
+			"curatedPrefix": {
+				"type": "string",
+				"defaultValue": "streaming-curated"
+			},
+			"processMode": {
+				"type": "string",
+				"defaultValue": "lastHour"
+			}
+		},
+		"variables": {
+			"year": {
+				"type": "String"
+			},
+			"month": {
+				"type": "String"
+			},
+			"day": {
+				"type": "String"
+			},
+			"hour": {
+				"type": "String"
+			},
+			"hourPath": {
+				"type": "String"
+			},
+			"files": {
+				"type": "Array"
+			}
+		},
 		"annotations": []
 	}
 }
