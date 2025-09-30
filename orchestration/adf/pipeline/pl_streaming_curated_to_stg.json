@@ -46,7 +46,9 @@
 							"dir": "@variables('hourPath')"
 						}
 					},
-					"fieldList": [],
+					"fieldList": [
+						"exists"
+					],
 					"storeSettings": {
 						"type": "AzureBlobStorageReadSettings",
 						"recursive": true,
