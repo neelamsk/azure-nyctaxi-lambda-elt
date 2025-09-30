@@ -5,7 +5,14 @@
 			{
 				"name": "GetFiles",
 				"type": "GetMetadata",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "SetHourPath",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -64,7 +71,7 @@
 				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "SetFiles",
+						"activity": "FilterFiles",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -73,7 +80,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@if(equals(variables('files'), null), json('[]'), variables('files'))",
+						"value": "@activity('FilterFiles').output.Value",
 						"type": "Expression"
 					},
 					"batchCount": 4,
@@ -633,6 +640,29 @@
 				"typeProperties": {
 					"variableName": "hourPath",
 					"value": "@concat(\n  'date=',\n  formatDateTime(utcnow(),'yyyy'), '/',\n  formatDateTime(utcnow(),'MM'), '/',\n  formatDateTime(utcnow(),'dd'), '/',\n  formatDateTime(utcnow(),'HH')\n)\n"
+				}
+			},
+			{
+				"name": "FilterFiles",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "SetFiles",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@coalesce(activity('GetFiles').output.childItems, json('[]'))",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@equals(item().type, 'File')",
+						"type": "Expression"
+					}
 				}
 			}
 		],
