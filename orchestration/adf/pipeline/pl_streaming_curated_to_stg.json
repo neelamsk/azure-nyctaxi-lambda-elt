@@ -39,6 +39,13 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_curated_folder",
+						"type": "DatasetReference",
+						"parameters": {
+							"dir": "@variables('hourPath')"
+						}
+					},
 					"fieldList": [],
 					"storeSettings": {
 						"type": "AzureBlobStorageReadSettings",
