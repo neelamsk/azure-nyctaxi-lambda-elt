@@ -7,7 +7,7 @@
 				"type": "GetMetadata",
 				"dependsOn": [
 					{
-						"activity": "SetHourPath",
+						"activity": "CheckHourFolder",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -661,6 +661,58 @@
 					"value": [
 						"@json('[]')"
 					]
+				}
+			},
+			{
+				"name": "CheckHourFolder",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "SetHourPath",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_curated_folder",
+						"type": "DatasetReference",
+						"parameters": {
+							"dir": "@variables('hourPath')"
+						}
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "IfHourExists",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('CheckHourFolder').output.exists, true)",
+						"type": "Expression"
+					}
 				}
 			}
 		],
