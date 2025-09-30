@@ -277,8 +277,7 @@
 								},
 								"sink": {
 									"type": "SqlDWSink",
-									"writeBehavior": "Insert",
-									"sqlWriterUseTableLock": false
+									"allowCopyCommand": true
 								},
 								"enableStaging": false,
 								"translator": {
@@ -287,249 +286,191 @@
 										{
 											"source": {
 												"name": "VendorID",
-												"type": "Int32",
-												"physicalType": "INT32"
+												"type": "Int32"
 											},
 											"sink": {
 												"name": "VendorID",
-												"type": "Int16",
-												"physicalType": "smallint"
+												"type": "Int16"
 											}
 										},
 										{
 											"source": {
 												"name": "tpep_pickup_datetime",
-												"type": "String",
-												"physicalType": "UTF8"
+												"type": "String"
 											},
 											"sink": {
 												"name": "tpep_pickup_datetime",
-												"type": "DateTime",
-												"physicalType": "datetime2"
+												"type": "DateTime"
 											}
 										},
 										{
 											"source": {
 												"name": "tpep_dropoff_datetime",
-												"type": "String",
-												"physicalType": "UTF8"
+												"type": "String"
 											},
 											"sink": {
 												"name": "tpep_dropoff_datetime",
-												"type": "DateTime",
-												"physicalType": "datetime2"
+												"type": "DateTime"
 											}
 										},
 										{
 											"source": {
 												"name": "passenger_count",
-												"type": "Int64",
-												"physicalType": "INT64"
+												"type": "Int64"
 											},
 											"sink": {
 												"name": "passenger_count",
-												"type": "Int16",
-												"physicalType": "smallint"
+												"type": "Int16"
 											}
 										},
 										{
 											"source": {
 												"name": "trip_distance",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "trip_distance",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 3,
-												"precision": 9
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "RatecodeID",
-												"type": "Int64",
-												"physicalType": "INT64"
+												"type": "Int64"
 											},
 											"sink": {
 												"name": "RatecodeID",
-												"type": "Int16",
-												"physicalType": "smallint"
+												"type": "Int16"
 											}
 										},
 										{
 											"source": {
 												"name": "store_and_fwd_flag",
-												"type": "String",
-												"physicalType": "UTF8"
+												"type": "String"
 											},
 											"sink": {
 												"name": "store_and_fwd_flag",
-												"type": "String",
-												"physicalType": "char"
+												"type": "String"
 											}
 										},
 										{
 											"source": {
 												"name": "PULocationID",
-												"type": "Int32",
-												"physicalType": "INT32"
+												"type": "Int32"
 											},
 											"sink": {
 												"name": "PULocationID",
-												"type": "Int16",
-												"physicalType": "smallint"
+												"type": "Int16"
 											}
 										},
 										{
 											"source": {
 												"name": "DOLocationID",
-												"type": "Int32",
-												"physicalType": "INT32"
+												"type": "Int32"
 											},
 											"sink": {
 												"name": "DOLocationID",
-												"type": "Int16",
-												"physicalType": "smallint"
+												"type": "Int16"
 											}
 										},
 										{
 											"source": {
 												"name": "payment_type",
-												"type": "Int64",
-												"physicalType": "INT64"
+												"type": "Int64"
 											},
 											"sink": {
 												"name": "payment_type",
-												"type": "Int16",
-												"physicalType": "smallint"
+												"type": "Int16"
 											}
 										},
 										{
 											"source": {
 												"name": "fare_amount",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "fare_amount",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "extra",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "extra",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "mta_tax",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "mta_tax",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "tip_amount",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "tip_amount",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "tolls_amount",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "tolls_amount",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "improvement_surcharge",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "improvement_surcharge",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "total_amount",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "total_amount",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "congestion_surcharge",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "congestion_surcharge",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
 											"source": {
 												"name": "Airport_fee",
-												"type": "Double",
-												"physicalType": "DOUBLE"
+												"type": "Double"
 											},
 											"sink": {
 												"name": "airport_fee",
-												"type": "Decimal",
-												"physicalType": "decimal",
-												"scale": 2,
-												"precision": 10
+												"type": "Decimal"
 											}
 										},
 										{
@@ -539,8 +480,7 @@
 											},
 											"sink": {
 												"name": "ingest_date",
-												"type": "Date",
-												"physicalType": "date"
+												"type": "Date"
 											}
 										},
 										{
@@ -550,8 +490,7 @@
 											},
 											"sink": {
 												"name": "source_file_name",
-												"type": "String",
-												"physicalType": "nvarchar"
+												"type": "String"
 											}
 										},
 										{
@@ -561,16 +500,10 @@
 											},
 											"sink": {
 												"name": "loaded_at",
-												"type": "DateTime",
-												"physicalType": "datetime2"
+												"type": "DateTime"
 											}
 										}
-									],
-									"typeConversion": true,
-									"typeConversionSettings": {
-										"allowDataTruncation": true,
-										"treatBooleanAsNumber": false
-									}
+									]
 								}
 							},
 							"inputs": [
