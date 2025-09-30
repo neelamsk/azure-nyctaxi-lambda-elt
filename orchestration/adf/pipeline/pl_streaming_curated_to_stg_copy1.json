@@ -3,70 +3,6 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "GetFiles",
-				"type": "GetMetadata",
-				"dependsOn": [
-					{
-						"activity": "CheckHourFolder",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"dataset": {
-						"referenceName": "ds_curated_folder",
-						"type": "DatasetReference",
-						"parameters": {
-							"dir": "@variables('hourPath')"
-						}
-					},
-					"fieldList": [
-						"childItems"
-					],
-					"storeSettings": {
-						"type": "AzureBlobStorageReadSettings",
-						"recursive": true,
-						"enablePartitionDiscovery": false
-					},
-					"formatSettings": {
-						"type": "BinaryReadSettings"
-					}
-				}
-			},
-			{
-				"name": "SetFiles",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "GetFiles",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "files",
-					"value": {
-						"value": "@coalesce(activity('GetFiles').output.childItems, json('[]'))",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "ForEachFile",
 				"type": "ForEach",
 				"dependsOn": [
@@ -622,7 +558,7 @@
 				"type": "Filter",
 				"dependsOn": [
 					{
-						"activity": "SetFiles",
+						"activity": "IfHourExists",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -638,29 +574,6 @@
 						"value": "@equals(item().type, 'File')",
 						"type": "Expression"
 					}
-				}
-			},
-			{
-				"name": "SetFilesEmpty",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "GetFiles",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "files",
-					"value": [
-						"@json('[]')"
-					]
 				}
 			},
 			{
@@ -706,13 +619,97 @@
 			{
 				"name": "IfHourExists",
 				"type": "IfCondition",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "CheckHourFolder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
 						"value": "@equals(activity('CheckHourFolder').output.exists, true)",
 						"type": "Expression"
-					}
+					},
+					"ifFalseActivities": [
+						{
+							"name": "SetFilesEmpty",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "files",
+								"value": [
+									"@json('[]')"
+								]
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "GetFiles",
+							"type": "GetMetadata",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "ds_curated_folder",
+									"type": "DatasetReference",
+									"parameters": {
+										"dir": "@variables('hourPath')"
+									}
+								},
+								"fieldList": [
+									"childItems"
+								],
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							}
+						},
+						{
+							"name": "SetFiles",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "GetFiles",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "files",
+								"value": {
+									"value": "@coalesce(activity('GetFiles').output.childItems, json('[]'))",
+									"type": "Expression"
+								}
+							}
+						}
+					]
 				}
 			}
 		],
