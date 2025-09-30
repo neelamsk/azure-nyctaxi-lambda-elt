@@ -103,7 +103,14 @@
 									"writeBehavior": "Insert",
 									"sqlWriterUseTableLock": false
 								},
-								"enableStaging": false,
+								"enableStaging": true,
+								"stagingSettings": {
+									"linkedServiceName": {
+										"referenceName": "ls_storage_curated",
+										"type": "LinkedServiceReference"
+									},
+									"path": "adf-staging"
+								},
 								"translator": {
 									"type": "TabularTranslator",
 									"mappings": [
@@ -549,22 +556,6 @@
 					"variableName": "hourPath",
 					"value": {
 						"value": "@concat(\n  'date=',\n  formatDateTime(utcnow(),'yyyy'), '/',\n  formatDateTime(utcnow(),'MM'), '/',\n  formatDateTime(utcnow(),'dd'), '/',\n  formatDateTime(utcnow(),'HH')\n)\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "FilterFiles",
-				"type": "Filter",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@variables('files')",
-						"type": "Expression"
-					},
-					"condition": {
-						"value": "@equals(item().type, 'File')",
 						"type": "Expression"
 					}
 				}
