@@ -38,7 +38,7 @@
 								"storedProcedureParameters": {
 									"blobPath": {
 										"value": {
-											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item())",
 											"type": "Expression"
 										},
 										"type": "String"
@@ -83,7 +83,7 @@
 										{
 											"name": "_blobPath",
 											"value": {
-												"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+												"value": "@concat('streaming-curated/', variables('hourPath'), '/', item())",
 												"type": "Expression"
 											}
 										}
@@ -383,7 +383,7 @@
 								"storedProcedureParameters": {
 									"blobPath": {
 										"value": {
-											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item().name)",
+											"value": "@concat('streaming-curated/', variables('hourPath'), '/', item())",
 											"type": "Expression"
 										},
 										"type": "String"
