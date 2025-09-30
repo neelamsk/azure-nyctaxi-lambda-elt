@@ -401,28 +401,6 @@
 												"type": "Int32",
 												"physicalType": "int"
 											}
-										},
-										{
-											"source": {
-												"name": "_runId",
-												"type": "String"
-											},
-											"sink": {
-												"name": "_ingestedAt",
-												"type": "DateTime",
-												"physicalType": "datetime2"
-											}
-										},
-										{
-											"source": {
-												"name": "_blobPath",
-												"type": "String"
-											},
-											"sink": {
-												"name": "_blobPath",
-												"type": "String",
-												"physicalType": "nvarchar"
-											}
 										}
 									],
 									"typeConversion": true,
