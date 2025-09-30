@@ -189,7 +189,7 @@
 								"batchCount": 4,
 								"activities": [
 									{
-										"name": "DeleteExisting_copy1",
+										"name": "DeleteExisting",
 										"type": "SqlServerStoredProcedure",
 										"dependsOn": [],
 										"policy": {
@@ -218,11 +218,11 @@
 										}
 									},
 									{
-										"name": "CopyCuratedToStg_copy1",
+										"name": "CopyCuratedToStg",
 										"type": "Copy",
 										"dependsOn": [
 											{
-												"activity": "DeleteExisting_copy1",
+												"activity": "DeleteExisting",
 												"dependencyConditions": [
 													"Succeeded"
 												]
@@ -527,11 +527,11 @@
 										]
 									},
 									{
-										"name": "LogSuccess_copy1",
+										"name": "LogSuccess",
 										"type": "SqlServerStoredProcedure",
 										"dependsOn": [
 											{
-												"activity": "CopyCuratedToStg_copy1",
+												"activity": "CopyCuratedToStg",
 												"dependencyConditions": [
 													"Succeeded"
 												]
@@ -589,7 +589,7 @@
 										"type": "SqlServerStoredProcedure",
 										"dependsOn": [
 											{
-												"activity": "CopyCuratedToStg_copy1",
+												"activity": "CopyCuratedToStg",
 												"dependencyConditions": [
 													"Failed"
 												]
@@ -647,7 +647,7 @@
 										"type": "SqlServerStoredProcedure",
 										"dependsOn": [
 											{
-												"activity": "DeleteExisting_copy1",
+												"activity": "DeleteExisting",
 												"dependencyConditions": [
 													"Failed"
 												]
