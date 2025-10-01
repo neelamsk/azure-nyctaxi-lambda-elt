@@ -922,7 +922,7 @@
 					"storedProcedureParameters": {
 						"blobPath": {
 							"value": {
-								"value": "@concat('streaming-curated/', variables('hourPath'), '/', item())",
+								"value": "Model",
 								"type": "Expression"
 							},
 							"type": "String"
@@ -980,7 +980,7 @@
 					"storedProcedureParameters": {
 						"blobPath": {
 							"value": {
-								"value": "@concat('streaming-curated/', variables('hourPath'), '/', item())",
+								"value": "Model",
 								"type": "Expression"
 							},
 							"type": "String"
