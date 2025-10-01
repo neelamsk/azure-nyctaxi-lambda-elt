@@ -948,7 +948,7 @@
 						},
 						"rowsCopied": {
 							"value": {
-								"value": "@coalesce(activity('CopyCuratedToStg').output.rowsCopied, 0)",
+								"value": "@coalesce(activity('UpsertFactFromSlice').output.rowsAffected, 0)",
 								"type": "Expression"
 							},
 							"type": "Int64"
@@ -1002,7 +1002,7 @@
 						},
 						"message": {
 							"value": {
-								"value": "@string(activity('CopyCuratedToStg').error.message)",
+								"value": "@coalesce(activity('UpsertFactFromSlice').output.rowsAffected, 0)",
 								"type": "Expression"
 							},
 							"type": "String"
