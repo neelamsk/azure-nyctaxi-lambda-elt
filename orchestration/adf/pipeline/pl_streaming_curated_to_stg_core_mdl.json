@@ -866,12 +866,21 @@
 				"typeProperties": {
 					"storedProcedureName": "[mdl].[usp_upsert_fact_trip_streaming]",
 					"storedProcedureParameters": {
+						"inserted": {
+							"value": "0",
+							"type": "Int32"
+						},
 						"runId": {
-							"value": {
-								"value": "@pipeline().RunId",
-								"type": "Expression"
-							},
+							"value": "@pipeline().RunId",
 							"type": "String"
+						},
+						"total": {
+							"value": "0",
+							"type": "Int32"
+						},
+						"updated": {
+							"value": "0",
+							"type": "Int32"
 						}
 					}
 				},
