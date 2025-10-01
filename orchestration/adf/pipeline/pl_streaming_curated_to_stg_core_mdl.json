@@ -957,7 +957,7 @@
 						},
 						"rowsCopied": {
 							"value": {
-								"value": "@coalesce(activity('UpsertFactFromSlice').output.rowsAffected, 0)",
+								"value": "@coalesce(activity('UpsertFactFromSlice').output.outputParameters.total, 0)\n",
 								"type": "Expression"
 							},
 							"type": "Int64"
@@ -1011,7 +1011,7 @@
 						},
 						"message": {
 							"value": {
-								"value": "@coalesce(activity('UpsertFactFromSlice').output.rowsAffected, 0)",
+								"value": "@coalesce(activity('UpsertFactFromSlice').output.outputParameters.total, 0)\n",
 								"type": "Expression"
 							},
 							"type": "String"
