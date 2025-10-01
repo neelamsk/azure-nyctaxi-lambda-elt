@@ -845,51 +845,6 @@
 				}
 			},
 			{
-				"name": "UpsertFactFromSlice",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "UpsertDimsFromSlice",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[mdl].[usp_upsert_fact_trip_streaming]",
-					"storedProcedureParameters": {
-						"inserted": {
-							"value": "0",
-							"type": "Int32"
-						},
-						"runId": {
-							"value": "@pipeline().RunId",
-							"type": "String"
-						},
-						"total": {
-							"value": "0",
-							"type": "Int32"
-						},
-						"updated": {
-							"value": "0",
-							"type": "Int32"
-						}
-					}
-				},
-				"linkedServiceName": {
-					"referenceName": "ls_syn_sql",
-					"type": "LinkedServiceReference"
-				}
-			},
-			{
 				"name": "PurgeOldSlice",
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
@@ -946,18 +901,21 @@
 					"storedProcedureParameters": {
 						"blobPath": {
 							"value": {
-								"value": "Model",
+								"value": "model/fact_trip",
 								"type": "Expression"
 							},
 							"type": "String"
 						},
 						"message": {
-							"value": " ",
+							"value": {
+								"value": "@string(concat('i=', activity('UpsertFactFromSlice').output.resultSets[0].rows[0].Inserted, ', u=', activity('UpsertFactFromSlice').output.resultSets[0].rows[0].Updated))",
+								"type": "Expression"
+							},
 							"type": "String"
 						},
 						"rowsCopied": {
 							"value": {
-								"value": "@coalesce(activity('UpsertFactFromSlice').output.outputParameters.total, 0)\n",
+								"value": "@coalesce(activity('UpsertFactFromSlice').output.resultSets[0].rows[0].Total, 0)",
 								"type": "Expression"
 							},
 							"type": "Int64"
@@ -1004,14 +962,14 @@
 					"storedProcedureParameters": {
 						"blobPath": {
 							"value": {
-								"value": "Model",
+								"value": "model\\fact_trip",
 								"type": "Expression"
 							},
 							"type": "String"
 						},
 						"message": {
 							"value": {
-								"value": "@coalesce(activity('UpsertFactFromSlice').output.outputParameters.total, 0)\n",
+								"value": "@string(concat(\n    'activity=UpsertFactFromSlice; failureType=',\n    activity('UpsertFactFromSlice').error.failureType,\n    '; errorCode=', activity('UpsertFactFromSlice').error.errorCode,\n    '; message=', activity('UpsertFactFromSlice').error.message\n))\n",
 								"type": "Expression"
 							},
 							"type": "String"
@@ -1036,6 +994,39 @@
 				"linkedServiceName": {
 					"referenceName": "ls_syn_sql",
 					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "UpsertFactFromSlice",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "UpsertDimsFromSlice",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_syn_sql",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "DECLARE @i INT, @u INT, @t INT;\nEXEC mdl.usp_upsert_fact_trip_streaming\n  @runId    = N'@{pipeline().RunId}',\n  @inserted = @i OUTPUT,\n  @updated  = @u OUTPUT,\n  @total    = @t OUTPUT;\n\nSELECT Inserted = @i, Updated = @u, Total = @t;\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
 				}
 			}
 		],
