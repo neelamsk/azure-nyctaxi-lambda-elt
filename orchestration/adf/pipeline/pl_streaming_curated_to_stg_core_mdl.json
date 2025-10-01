@@ -1,5 +1,5 @@
 {
-	"name": "pl_streaming_curated_to_stg",
+	"name": "pl_streaming_curated_to_stg_core_mdl",
 	"properties": {
 		"activities": [
 			{
@@ -89,7 +89,10 @@
 										},
 										{
 											"name": "_ingestedAt",
-											"value": "@utcnow()"
+											"value": {
+												"value": "@utcnow()",
+												"type": "Expression"
+											}
 										}
 									],
 									"storeSettings": {
@@ -756,7 +759,10 @@
 					"storedProcedureName": "[core].[usp_build_trip_clean_slice_streaming]",
 					"storedProcedureParameters": {
 						"runId": {
-							"value": "@pipeline().RunId",
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
 							"type": "String"
 						}
 					}
@@ -789,7 +795,10 @@
 					"storedProcedureName": "[core].[usp_upsert_trip_clean_from_slice_streaming]",
 					"storedProcedureParameters": {
 						"runId": {
-							"value": "@pipeline().RunId",
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
 							"type": "String"
 						}
 					}
@@ -822,7 +831,10 @@
 					"storedProcedureName": "[mdl].[usp_upsert_dims_from_slice_streaming]",
 					"storedProcedureParameters": {
 						"runId": {
-							"value": "@pipeline().RunId",
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
 							"type": "String"
 						}
 					}
@@ -855,7 +867,10 @@
 					"storedProcedureName": "[mdl].[usp_upsert_fact_trip_streaming]",
 					"storedProcedureParameters": {
 						"runId": {
-							"value": "@pipeline().RunId",
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
 							"type": "String"
 						}
 					}
