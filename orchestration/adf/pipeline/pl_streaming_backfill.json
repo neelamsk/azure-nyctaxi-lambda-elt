@@ -115,6 +115,7 @@
 				}
 			}
 		],
+		"concurrency": 1,
 		"parameters": {
 			"processMode": {
 				"type": "string",
