@@ -2591,7 +2591,7 @@
 						"typeProperties": {
 							"variableName": "hourPath",
 							"value": {
-								"value": "@concat(\n  'date=',\n  formatDateTime(utcnow(),'yyyy'), '/',\n  formatDateTime(utcnow(),'MM'), '/',\n  formatDateTime(utcnow(),'dd'), '/',\n  formatDateTime(utcnow(),'HH')\n)\n",
+								"value": "@formatDateTime(\n    coalesce(pipeline().parameters.fixedHourUtc, formatDateTime(addHours(utcNow(), -1), 'yyyy-MM-ddTHH:00:00Z')),\n    'yyyy/MM/dd/HH'\n)\n",
 								"type": "Expression"
 							}
 						}
@@ -3051,6 +3051,9 @@
 					"processMode": {
 						"type": "string",
 						"defaultValue": "lastHour"
+					},
+					"fixedHourUtc": {
+						"type": "string"
 					}
 				},
 				"variables": {
@@ -3205,6 +3208,296 @@
 				"[concat(variables('factoryId'), '/pipelines/pl_raw_to_stg_nyctaxi')]",
 				"[concat(variables('factoryId'), '/pipelines/pl_stg_to_core_nyctaxi')]",
 				"[concat(variables('factoryId'), '/pipelines/pl_core_to_mdl_nyctaxi')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_streaming_backfill_range')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SetcurrentHour",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "currentHour",
+							"value": {
+								"value": "@formatDateTime(pipeline().parameters.startHourUtc, 'yyyy-MM-ddTHH:00:00Z')\n",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "SetcurrentHour",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@greater(variables('currentHour'), pipeline().parameters.endHourUtc)\n",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "ExecuteHour",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"fixedHourUtc": {
+												"value": "@variables('currentHour')",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "ComputeNextHour",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "ExecuteHour",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "nextHour",
+										"value": {
+											"value": "@formatDateTime(addHours(variables('currentHour'), 1), 'yyyy-MM-ddTHH:00:00Z')",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "AdvanceHour",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "ComputeNextHour",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "currentHour",
+										"value": {
+											"value": "@variables('nextHour')",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"startHourUtc": {
+						"type": "string"
+					},
+					"endHourUtc": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"currentHour": {
+						"type": "String"
+					},
+					"nextHour": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_streaming_curated_to_stg_core_mdl')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_streaming_backfill')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "IflastHour",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(pipeline().parameters.processMode, 'lastHour')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ExecutePipeline_lastHour",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"fixedHourUtc": {
+												"value": "@pipeline().parameters.fixedHourUtc",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "IffixedHour",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(pipeline().parameters.processMode, 'fixedHour')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ExecutePipeline_fixedHour",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"fixedHourUtc": {
+												"value": "@pipeline().parameters.fixedHourUtc",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Ifrange",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(pipeline().parameters.processMode, 'range')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ExecutePipeline_range",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_backfill_range",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"startHourUtc": {
+												"value": "@pipeline().parameters.startHourUtc",
+												"type": "Expression"
+											},
+											"endHourUtc": {
+												"value": "@pipeline().parameters.endHourUtc",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"processMode": {
+						"type": "string",
+						"defaultValue": "lastHour"
+					},
+					"fixedHourUtc": {
+						"type": "string"
+					},
+					"startHourUtc": {
+						"type": "string"
+					},
+					"endHourUtc": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"currentHour": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_streaming_curated_to_stg_core_mdl')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_streaming_backfill_range')]"
 			]
 		},
 		{
