@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "eltazr3-adf"
 		},
+		"ls_storage_curated_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_storage_curated'"
+		},
 		"ls_syn_sql_password": {
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'ls_syn_sql'"
@@ -73,6 +77,9 @@
 				"parameters": {
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
+					},
+					"ls_storage_curated_connectionString": {
+						"value": "[parameters('ls_storage_curated_connectionString')]"
 					},
 					"ls_syn_sql_password": {
 						"value": "[parameters('ls_syn_sql_password')]"

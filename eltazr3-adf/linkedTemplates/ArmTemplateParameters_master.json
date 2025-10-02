@@ -5,6 +5,9 @@
 		"factoryName": {
 			"value": "eltazr3-adf"
 		},
+		"ls_storage_curated_connectionString": {
+			"value": ""
+		},
 		"ls_syn_sql_password": {
 			"value": ""
 		},
