@@ -80,17 +80,23 @@
 					},
 					"ifTrueActivities": [
 						{
-							"name": "SetCurrentHour",
-							"type": "SetVariable",
+							"name": "ExecutePipeline_range",
+							"type": "ExecutePipeline",
 							"dependsOn": [],
 							"policy": {
-								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"variableName": "currentHour",
-								"value": "@pipeline().parameters.startHourUtc"
+								"pipeline": {
+									"referenceName": "pl_streaming_backfill_range",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"startHourUtc": "@pipeline().parameters.startHourUtc",
+									"endHourUtc": "@pipeline().parameters.endHourUtc"
+								}
 							}
 						}
 					]
