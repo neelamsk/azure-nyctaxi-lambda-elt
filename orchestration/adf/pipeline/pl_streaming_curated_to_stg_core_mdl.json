@@ -595,7 +595,7 @@
 				"typeProperties": {
 					"variableName": "hourPath",
 					"value": {
-						"value": "@concat(\n  'date=',\n  formatDateTime(utcnow(),'yyyy'), '/',\n  formatDateTime(utcnow(),'MM'), '/',\n  formatDateTime(utcnow(),'dd'), '/',\n  formatDateTime(utcnow(),'HH')\n)\n",
+						"value": "@formatDateTime(\n    coalesce(pipeline().parameters.fixedHourUtc, formatDateTime(addHours(utcNow(), -1), 'yyyy-MM-ddTHH:00:00Z')),\n    'yyyy/MM/dd/HH'\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -871,7 +871,10 @@
 							"type": "Int32"
 						},
 						"runId": {
-							"value": "@pipeline().RunId",
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
 							"type": "String"
 						}
 					}
@@ -1027,7 +1030,10 @@
 					"scripts": [
 						{
 							"type": "Query",
-							"text": "DECLARE @i INT, @u INT, @t INT;\nEXEC mdl.usp_upsert_fact_trip_streaming\n  @runId    = N'@{pipeline().RunId}',\n  @inserted = @i OUTPUT,\n  @updated  = @u OUTPUT,\n  @total    = @t OUTPUT;\n\nSELECT Inserted = @i, Updated = @u, Total = @t;\n"
+							"text": {
+								"value": "DECLARE @i INT, @u INT, @t INT;\nEXEC mdl.usp_upsert_fact_trip_streaming\n  @runId    = N'@{pipeline().RunId}',\n  @inserted = @i OUTPUT,\n  @updated  = @u OUTPUT,\n  @total    = @t OUTPUT;\n\nSELECT Inserted = @i, Updated = @u, Total = @t;\n",
+								"type": "Expression"
+							}
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
@@ -1046,6 +1052,9 @@
 			"processMode": {
 				"type": "string",
 				"defaultValue": "lastHour"
+			},
+			"fixedHourUtc": {
+				"type": "string"
 			}
 		},
 		"variables": {
