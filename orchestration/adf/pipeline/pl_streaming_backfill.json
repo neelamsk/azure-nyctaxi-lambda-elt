@@ -28,7 +28,7 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"fixedHourUtc": "pipeline().parameters.fixedHourUtc"
+									"fixedHourUtc": "@pipeline().parameters.fixedHourUtc"
 								}
 							}
 						}
