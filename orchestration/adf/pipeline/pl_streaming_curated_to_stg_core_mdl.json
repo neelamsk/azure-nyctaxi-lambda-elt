@@ -845,7 +845,7 @@
 				}
 			},
 			{
-				"name": "PurgeOldSlice",
+				"name": "PurgeSliceForRun",
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
@@ -864,11 +864,15 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"storedProcedureName": "[core].[usp_purge_trip_clean_slice]",
+					"storedProcedureName": "[core].[usp_purge_trip_clean_slice_streaming]",
 					"storedProcedureParameters": {
-						"keepDays": {
-							"value": "14",
+						"deleted": {
+							"value": "0",
 							"type": "Int32"
+						},
+						"runId": {
+							"value": "@pipeline().RunId",
+							"type": "String"
 						}
 					}
 				},
@@ -882,7 +886,7 @@
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "PurgeOldSlice",
+						"activity": "PurgeSliceForRun",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -943,7 +947,7 @@
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "PurgeOldSlice",
+						"activity": "PurgeSliceForRun",
 						"dependencyConditions": [
 							"Failed"
 						]
