@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "currentHour",
+				"name": "SetcurrentHour",
 				"type": "SetVariable",
 				"dependsOn": [],
 				"policy": {
@@ -21,7 +21,7 @@
 				"type": "Until",
 				"dependsOn": [
 					{
-						"activity": "currentHour",
+						"activity": "SetcurrentHour",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -35,7 +35,7 @@
 					},
 					"activities": [
 						{
-							"name": "Execute Pipeline1",
+							"name": "ExecuteHour",
 							"type": "ExecutePipeline",
 							"dependsOn": [],
 							"policy": {
@@ -54,11 +54,32 @@
 							}
 						},
 						{
-							"name": "incrementcurrentHour",
+							"name": "ComputeNextHour",
 							"type": "SetVariable",
 							"dependsOn": [
 								{
-									"activity": "Execute Pipeline1",
+									"activity": "ExecuteHour",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "nextHour",
+								"value": "@formatDateTime(addHours(variables('currentHour'), 1), 'yyyy-MM-ddTHH:00:00Z')"
+							}
+						},
+						{
+							"name": "AdvanceHour",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "ComputeNextHour",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -71,7 +92,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"variableName": "currentHour",
-								"value": "@formatDateTime(addHours(variables('currentHour'), 1), 'yyyy-MM-ddTHH:00:00Z')\n"
+								"value": "@variables('nextHour')"
 							}
 						}
 					],
@@ -89,6 +110,9 @@
 		},
 		"variables": {
 			"currentHour": {
+				"type": "String"
+			},
+			"nextHour": {
 				"type": "String"
 			}
 		},
