@@ -1,0 +1,25 @@
+{
+	"name": "t_hourly_backfill_streaming",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pl_streaming_backfill",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Hour",
+				"interval": 1,
+				"startTime": "2025-10-02T17:11:00Z",
+				"endTime": "2025-10-04T17:11:00Z",
+				"timeZone": "UTC"
+			}
+		}
+	}
+}

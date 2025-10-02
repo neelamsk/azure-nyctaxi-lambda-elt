@@ -28,7 +28,10 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"fixedHourUtc": "@pipeline().parameters.fixedHourUtc"
+									"fixedHourUtc": {
+										"value": "@pipeline().parameters.fixedHourUtc",
+										"type": "Expression"
+									}
 								}
 							}
 						}
@@ -61,7 +64,10 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"fixedHourUtc": "@pipeline().parameters.fixedHourUtc"
+									"fixedHourUtc": {
+										"value": "@pipeline().parameters.fixedHourUtc",
+										"type": "Expression"
+									}
 								}
 							}
 						}
@@ -94,8 +100,14 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"startHourUtc": "@pipeline().parameters.startHourUtc",
-									"endHourUtc": "@pipeline().parameters.endHourUtc"
+									"startHourUtc": {
+										"value": "@pipeline().parameters.startHourUtc",
+										"type": "Expression"
+									},
+									"endHourUtc": {
+										"value": "@pipeline().parameters.endHourUtc",
+										"type": "Expression"
+									}
 								}
 							}
 						}
@@ -103,6 +115,7 @@
 				}
 			}
 		],
+		"concurrency": 1,
 		"parameters": {
 			"processMode": {
 				"type": "string",
