@@ -1,0 +1,69 @@
+{
+	"name": "pl_streaming_backfill_range",
+	"properties": {
+		"activities": [
+			{
+				"name": "currentHour",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "currentHour",
+					"value": "startHourUtc"
+				}
+			},
+			{
+				"name": "Until1",
+				"type": "Until",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "currentHour > endHourUtc.",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Execute Pipeline1",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"fixedHourUtc": "currentHour"
+								}
+							}
+						}
+					],
+					"timeout": "0.12:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"startHourUtc": {
+				"type": "string"
+			},
+			"endHourUtc": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"currentHour": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
