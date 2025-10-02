@@ -30,7 +30,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "currentHour > endHourUtc.",
+						"value": "@greater(variables('currentHour'), pipeline().parameters.endHourUtc)\n",
 						"type": "Expression"
 					},
 					"activities": [
@@ -49,12 +49,33 @@
 								},
 								"waitOnCompletion": true,
 								"parameters": {
-									"fixedHourUtc": "currentHour"
+									"fixedHourUtc": "@variables('currentHour')"
 								}
 							}
 						}
 					],
 					"timeout": "0.12:00:00"
+				}
+			},
+			{
+				"name": "incrementcurrentHour",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Until1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "currentHour",
+					"value": "@formatDateTime(addHours(variables('currentHour'), 1), 'yyyy-MM-ddTHH:00:00Z')\n"
 				}
 			}
 		],
