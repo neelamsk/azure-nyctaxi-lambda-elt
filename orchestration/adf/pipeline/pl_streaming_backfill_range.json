@@ -1,0 +1,121 @@
+{
+	"name": "pl_streaming_backfill_range",
+	"properties": {
+		"activities": [
+			{
+				"name": "SetcurrentHour",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "currentHour",
+					"value": "@formatDateTime(pipeline().parameters.startHourUtc, 'yyyy-MM-ddTHH:00:00Z')\n"
+				}
+			},
+			{
+				"name": "Until1",
+				"type": "Until",
+				"dependsOn": [
+					{
+						"activity": "SetcurrentHour",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(variables('currentHour'), pipeline().parameters.endHourUtc)\n",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "ExecuteHour",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"fixedHourUtc": "@variables('currentHour')"
+								}
+							}
+						},
+						{
+							"name": "ComputeNextHour",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "ExecuteHour",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "nextHour",
+								"value": "@formatDateTime(addHours(variables('currentHour'), 1), 'yyyy-MM-ddTHH:00:00Z')"
+							}
+						},
+						{
+							"name": "AdvanceHour",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "ComputeNextHour",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "currentHour",
+								"value": "@variables('nextHour')"
+							}
+						}
+					],
+					"timeout": "0.12:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"startHourUtc": {
+				"type": "string"
+			},
+			"endHourUtc": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"currentHour": {
+				"type": "String"
+			},
+			"nextHour": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
