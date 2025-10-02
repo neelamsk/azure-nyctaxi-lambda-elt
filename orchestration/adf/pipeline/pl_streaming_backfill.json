@@ -67,40 +67,6 @@
 						}
 					]
 				}
-			},
-			{
-				"name": "Ifrange",
-				"type": "IfCondition",
-				"dependsOn": [],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@equals(pipeline().parameters.processMode, 'range')",
-						"type": "Expression"
-					},
-					"ifTrueActivities": [
-						{
-							"name": "ExecutePipeline_range",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pl_streaming_backfill_range",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"startHourUtc": "@pipeline().parameters.startHourUtc",
-									"endHourUtc": "@pipeline().parameters.endHourUtc"
-								}
-							}
-						}
-					]
-				}
 			}
 		],
 		"parameters": {
