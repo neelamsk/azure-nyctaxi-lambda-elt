@@ -1,6 +1,122 @@
 {
 	"name": "pl_streaming_backfill",
 	"properties": {
+		"activities": [
+			{
+				"name": "IflastHour",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(pipeline().parameters.processMode, 'lastHour')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "ExecutePipeline_lastHour",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"fixedHourUtc": "pipeline().parameters.fixedHourUtc"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "IffixedHour",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(pipeline().parameters.processMode, 'fixedHour')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "ExecutePipeline_fixedHour",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"fixedHourUtc": "@pipeline().parameters.fixedHourUtc"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Ifrange",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(pipeline().parameters.processMode, 'range')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "SetCurrentHour",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "currentHour",
+								"value": "@pipeline().parameters.startHourUtc"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"processMode": {
+				"type": "string",
+				"defaultValue": "lastHour"
+			},
+			"fixedHourUtc": {
+				"type": "string"
+			},
+			"startHourUtc": {
+				"type": "string"
+			},
+			"endHourUtc": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"currentHour": {
+				"type": "String"
+			}
+		},
 		"annotations": []
 	}
 }
