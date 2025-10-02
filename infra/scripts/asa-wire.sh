@@ -215,7 +215,10 @@ SELECT
   schemaVersion, eventId, tpepPickupDatetime, tpepDropoffDatetime, vendorId,
   passengerCount, tripDistance, puLocationId, doLocationId,
   fareAmount, tipAmount, tollsAmount, improvementSurcharge, mtaTax, extra, totalAmount,
-  paymentType, source, producerTs, enqueuedTs, durationMin
+  paymentType, source, producerTs, enqueuedTs, durationMin,
+  CAST(RatecodeID AS VARCHAR(16))      AS rateCode,
+UPPER(LTRIM(RTRIM(store_and_fwd_flag))) AS storeAndFwdFlag
+
 INTO [outCuratedCsv]
 FROM enriched
 WHERE missingRequired = 0 AND negativeValues = 0 AND badDuration = 0;
