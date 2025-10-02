@@ -13,13 +13,20 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "currentHour",
-					"value": "startHourUtc"
+					"value": "@formatDateTime(pipeline().parameters.startHourUtc, 'yyyy-MM-ddTHH:00:00Z')\n"
 				}
 			},
 			{
 				"name": "Until1",
 				"type": "Until",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "currentHour",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
