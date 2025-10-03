@@ -1,171 +1,142 @@
-# Batch ELT on Azure (Dev) — Raw → Staging → Core → Modeling
+# Streaming + Batch ELT → Synapse DW (Hourly + Backfill)
+![Security Scanned](https://img.shields.io/badge/Security-Scanned%20with%20TruffleHog-green)
+![Managed Identity](https://img.shields.io/badge/Auth-Managed%20Identity-blue)
+![RBAC](https://img.shields.io/badge/Access-RBAC%20Enabled-blue)
 
-> **TL;DR**: This project implements an **ADF-first batch ELT** that lands Parquet to **ADLS Gen2 (raw)**, loads **idempotently** to **Synapse (staging)**, transforms to **Core**, and then builds a **Modeling (Star) layer** with DQ gates, run logging, observability, and a single **orchestrator** pipeline. Optional governance via **Microsoft Purview** shows lineage *(raw → stg → core → mdl)*.
+**One‑liner:** Event Hubs & ASA land **raw/curated/DLQ** to ADLS; ADF loads Synapse **hourly** (with backfill). Batch ELT shares the **same model**. Power BI shows **Last Updated / Latency** so freshness is clear.
 
-![Architecture (Dev)](docs/img/arch-dev-2.jpg)
-
-
----
-
-## 1) Source & Landing (raw)
-
-- Land source files **as-is** to `adls/raw/<dataset>/ingest_date=YYYY-MM-DD/`.
-- Keep raw immutable for backfills/replay and full lineage.
-
-![Raw files in ADLS](docs/img/adls-raw-listing.png)
-
+**Why it matters:** Reliable, idempotent warehouse loads with DLQ, alerts, and range backfills. A single source of truth powers BI from both streaming and batch.
 
 ---
 
-## 2) Staging
+## Architecture (high level)
 
-- Pipeline: **`pl_raw_to_stg_nyctaxi`**
-- Copies landed files to **`stg.trip`** with minimal typing + lineage columns (`ingest_date`, `source_file_name`, `loaded_at`).
-- Light DQ + run logging to **`ops.run_log` / `ops.dq_result`**.
+```
+                 ┌────────────────────────────── Streaming Lane ──────────────────────────────┐
+Producer(s) → Event Hubs → Stream Analytics (parse + DQ) → ADLS Gen2
+                                     ├─ Raw JSONL  → streaming/…/date=YYYY/MM/DD/time=HH/…
+                                     ├─ Curated CSV → streaming-curated/…/date=…/time=…/…
+                                     └─ DLQ JSON    → streaming-dlq/…/date=…/time=…/…
+                                     |
+                                     └→ ADF hour pipeline → Synapse (stg → slice → dims → fact)
+                                              └→ Backfill wrapper (lastHour | fixedHour | range)
 
----
+                 └────────────────────────────── Batch ELT Lane ───────────────────────────────┘
+Batch files (landing) → ADF (copy/transform) → Synapse (stg → core → mdl.* same model tables)
 
-## 3) Transformation (staging → core)
-
-- Pipeline: **`pl_stg_to_core_nyctaxi`** *(called by the orchestrator)*
-- CTAS slice → quarantine rejects → dedupe load to `core.trip_clean` → DQ gate → metrics + logging.
-- Physical: `core.trip_clean` **ROUND_ROBIN + CCI**.
-
-**Docs:** `sql/docs/README_transform.md` • **Dictionary:** `sql/docs/data_dictionary.md`
-
----
-
-## 4) Modeling (core → star)
-
-- Pipeline: **`pl_core_to_mdl_nyctaxi`** *(called by the orchestrator)*
-- Upsert dims (vendor, payment, rate, flag, location) → load `mdl.fact_trip` (hash `trip_id`) → **post-load stats** → **Model DQ** → logging.
-- **BI view:** `mdl.vw_fact_trip_bi` for friendly slicing (PU/DO role-play, measures).
-
-**Docs:** `sql/docs/README_modeling.md`
-
-
----
-
-## 5) Orchestration & Backfill
-
-- Orchestrator: **`pl_daily_nyctaxi`** runs **raw → stg → core → mdl** with the **same** `run_date`.
-- Single daily trigger (only on orchestrator). Backfill by calling the orchestrator with date lists.
-![Orchestrator success](docs/img/orchestrator_success.png)
-
-![Orchestrator runs table](docs/img/orchestrator_runs_table.png)
-
-
----
-
-## 6) Observability & Alerts
-![DQ gates timeline](docs/img/dq_gates_timeline.png)
-
-**Tables:** `ops.run_log`, `ops.run_metrics`, `ops.dq_result` (staging, core, modeling stages).  
-**Alerts (Azure Monitor):**  
-- **Pipeline failed runs > 0** on `pl_daily_nyctaxi` (primary alert)  
-- *(Optional)* Activity failed runs > 0, Pipeline duration > N minutes
-
-**Future (optional):**  
-- Log Analytics workbook: pipeline run trend, DQ pass/fail trend, rows_loaded by date.  
-- Add **cost view** (SQL DW pause/resume windows; data processed).
-![DQ results (ops.dq_result)](docs/img/dq_results_sql.png)
-![Run log (ops.run_log)](docs/img/run_log_sql.png)
-
-
-
----
-
-## 7) Security posture (dev) & prod hardening
-
-**Today (dev):**
-- **AuthN:** Managed Identity on ADF/Synapse; no secrets in code.
-- **AuthZ:** RBAC to Storage & SQL (least privilege).
-- **Purview access:** Purview MI has Storage Blob Data Reader + DB `db_datareader` / `VIEW DEFINITION`.
-- **Data:** NYC Taxi sample has no direct PII; only financial fields (fare/tip/tolls).
-
-**Prod hardening plan:**
-- **Secrets:** if any credentials remain, move to **Key Vault**; use MI wherever possible.
-- **Networking:** private endpoints for ADLS, Synapse SQL, and Key Vault; restrict public network access and enable firewall rules/NSGs.
-- **Policies:** enable Defender for Cloud recommendations; enforce “no public access” and “https only” policies; tag resources (env, owner, cost-center).
-- **RBAC hygiene:** least privilege roles; break-glass procedure documented.
-- **Purview governance:** glossary terms for conformed dims; (if PII exists later) apply classifications and masking policies.
-
-![RBAC: ADF MI on Storage](docs/img/storage-rbac-adf-mi.png)
-
-
----
-
-## 8) Governance (Purview)
-
-- **ADLS scan** on `raw/` with a **Pattern rule** to group `ingest_date=` partitions as a **resource set**.  
-- **SQL scan** on the **Dedicated SQL database** to catalog `stg/core/mdl` tables.  
-- **ADF ↔ Purview** connection to emit lineage **process nodes**.
-- **Scheduling order:** Orchestrator run → **ADLS** scan → **SQL** scan (keeps assets + lineage current).
-
-**Expected lineage:**  
-`raw file → (ADF Copy) → stg.trip → (Script) → core.trip_clean → (Script) → mdl.fact_trip`
-
-![Purview resource set grouping (raw)](docs/img/purview_raw_resource_set.png)
-![Purview lineage for mdl.fact_trip](docs/img/purview_lineage_fact_trip.png)
-
-
-
----
-
-## 9) Repository layout
-
-```text
-infra/terraform/           # Azure resources (ADLS, ADF, Synapse, Purview, RBAC)
-ingest/                    # Dev landing utilities (upload/backfill scripts)
-  upload_raw.sh
-  backfill_dates.sh
-sql/                       # DDL/DML (staging, core, ref, err, ops, mdl)
-  docs/
-    data_dictionary.md
-    README_transform.md
-    README_modeling.md
-adf/                       # (optional) ADF factory JSON if checked-in
-docs/
-  img/                     # screenshots/diagrams
-README.md                  # ← this file
+Power BI → reads from Synapse view (shared by batch & streaming)
 ```
 
----
-
-## 10) Operations runbook
-
-**Re-run a day (end-to-end)**  
-- ADF → Monitor → Pipelines → **`pl_daily_nyctaxi`** → *Trigger now*  
-  - `dataset = nyctaxi_yellow`  
-  - `run_date = YYYY-MM-DD`
-
-**Where to look when red**  
-- `SELECT TOP 50 * FROM ops.run_log ORDER BY started_at_utc DESC;`  
-- `SELECT TOP 50 * FROM ops.dq_result ORDER BY created_at_utc DESC;`  
-- `SELECT TOP 50 * FROM ops.run_metrics ORDER BY run_ts_utc DESC;`
+**Core ideas**
+- **Separate concerns**: stream continuously to the lake; micro‑batch the warehouse (hourly) for reliability & cost.
+- **Synapse‑safe upsert**: update‑then‑insert (no reliance on `@@ROWCOUNT`/`MERGE OUTPUT`). 
+- **Run‑scoped purge**: delete `core.trip_clean_slice` by `_runId` after each model load (clean reruns/backfills).
+- **Shared model**: both lanes feed `mdl.fact_trip` & dims → BI stays unchanged.
 
 ---
 
-## 11) BI & Consumption
+## What’s included
 
-- Power BI model on `mdl.vw_fact_trip_bi` (DirectQuery)  
-- Consistent KPI measures (Tip %, Avg Fare/km, Night Ride %)  
-- Semantic model + row-level security (if needed)  
-- Performance tuning at scale (partitioning, CTAS load patterns)  
-- Cost hygiene: auto-pause/resume SQL pool; Log Analytics dashboards
-![BI overview (DirectQuery on mdl.vw_fact_trip_bi)](docs/img/pbi_overview.png)
+- **Streaming**
+  - ASA wiring: parse/enrich; three sinks (raw/curated/DLQ) with hourly partitioning.
+  - ADF hour pipeline: Copy curated → staging; build slice; upsert dims & fact; purge slice; log.
+  - Backfill: wrapper supports **lastHour / fixedHour / range** (hour‑by‑hour loop).
+- **Batch ELT**
+  - Existing pipelines to load the same **mdl** model (fact + dims), aligned keys.
+- **Model**
+  - `mdl.fact_trip`: `CHAR(64)` SHA‑256 `trip_id`, **DISTRIBUTION = HASH(trip_id)**, **CLUSTERED COLUMNSTORE**.
+  - Dims: vendor, payment, location (replicate). Rate/flag optional.
+  - BI view: `mdl.vw_fact_trip_bi` (flattened with freshness fields).
+- **BI**
+  - Power BI report with **Trips**, **Total Fare**, **Tip %**, **Last Updated (UTC)** & **Latency (min)** cards.
+- **Ops**
+  - Hourly trigger; Azure Monitor alerts (ADF/ASA/EH/SQL); ADLS lifecycle rules; RBAC via MSI where possible.
 
 ---
 
-## 12) Screenshots to include (portfolio-ready)
+## Key design choices (short)
 
-Place images in `docs/img/` and reference them from this README.
+- **Idempotent upsert**: stage → **UPDATE** matched diffs → **INSERT** new → counts via temp tables; expose counts via a 1‑row `SELECT` or log inside SP.
+- **Distribution strategy**: big fact **HASH(trip_id)** + CCI; small dims **REPLICATE** → avoids runtime **shuffles**.
+- **Backfill simplicity**: wrapper with an **Until** loop: process hour → bump hour → repeat.
+- **Quality**: curated = rows that pass DQ; DLQ = rejects with reason; raw = full fidelity.
 
-- **Orchestrator run (green)** with child pipelines expanded — `docs/img/orchestrator_success.png`
-- **Activity timeline** showing `CoreDQ_Gate` and `ModelDQ_Gate` — `docs/img/dq_gates_timeline.png`
-- **DQ results** query (`ops.dq_result` filtered by a date, stage=`core_to_mdl`) — `docs/img/dq_results_sql.png`
-- **Run log** query (`ops.run_log` last runs) — `docs/img/run_log_sql.png`
-- **Purview lineage** for `mdl.fact_trip` (show process nodes) — `docs/img/purview_lineage_fact_trip.png`
-- **Raw resource set** (grouped `ingest_date=` partitions) — `docs/img/purview_raw_resource_set.png`
-- **BI visual** (Trips by date; matrix by payment type × borough) — `docs/img/pbi_overview.png`
+---
 
+## Quality & lineage (optional roadmap)
+
+- **Row‑level data quality counters** *(M)*  
+  Count per run: `good_rows`, `dlq_rows`, `negative_fare`, `bad_duration`, `null_vendor`, etc. Log in audit or a dedicated table.
+- **Purview lineage** *(L)*  
+  Register EH, ASA, ADLS, ADF, Synapse. Expected lineage: **EH → ASA → ADLS → ADF → Synapse**.
+
+---
+
+## Operating the solution (at a glance)
+
+- **Hourly**: trigger runs the hour pipeline for the **last completed hour**.
+- **Backfill**: set `startHourUtc`/`endHourUtc` (ISO hour). Wrapper loops hours and calls the hour pipeline each iteration.
+- **Reruns**: safe; run‑scoped purge ensures clean idempotent loads.
+- **Alerts** (Azure Monitor): 
+  - ADF: Pipeline/Activity failed runs.
+  - ASA: Watermark delay/backlog, job status.
+  - Event Hubs: Throttled requests, server errors.
+  - Synapse: CPU/tempdb/queue depth.
+  - Storage (optional): availability/5xx.
+- **Lifecycle**: curated → Cool @7d, delete @30–60d; DLQ longer; staging cleanup @7d.
+
+---
+
+## Verification quick checks
+
+- Slice purged: `SELECT COUNT(*) FROM core.trip_clean_slice WHERE _runId='<RunId>';` → **0**.
+- Fact touched recently: `SELECT TOP 5 trip_id, last_upsert_at FROM mdl.fact_trip ORDER BY last_upsert_at DESC;`.
+- Power BI freshness: **Last Updated** card matches last successful hour; **Latency (min)** sane.
+
+---
+
+## Repo map
+
+```
+/infra        # Bicep/ARM + GitHub Actions (deploy EH/ASA/ADLS/alerts/pipelines)
+/asa          # asa-wire.sh (job wiring + inputs/outputs/query)
+/adf          # pipelines (JSON); backfill wrapper + range
+/sql          # DDL (tables); procs (slice/dims/fact/purge); BI view
+/bi           # PBIX or screenshots
+README.md     # (this file) — high-level overview
+README_BATCHELT.md   # Batch ELT details
+README_STREAMING.md  # Streaming details
+```
+---
+
+## 🔒 Security Practices
+
+This repository has been scanned for security vulnerabilities and secrets:
+- **Secret Scanning**: Verified using [TruffleHog](https://github.com/trufflesecurity/trufflehog) - no secrets detected
+- **Managed Identities**: All Azure authentication uses system-assigned managed identities
+- **RBAC**: Least privilege access implemented across all resources
+- **Environment Variables**: Sensitive configuration stored in GitHub Environment Secrets (not in code)
+```bash
+# Security scan performed with:
+trufflehog --regex --entropy=False https://github.com/neelamsk/azure-nyctaxi-lambda-elt
+
+---
+
+## Glossary (2 lines each)
+
+- **OLTP vs OLAP** — app DB for transactions vs. warehouse for analytics.  
+- **MPP** — massively parallel workers; avoid **shuffles** via **HASH(key)** on big joins, **REPLICATE** small dims.  
+- **CTAS + CCI** — fast (re)build with the right distribution; columnstore for scan speed.  
+- **DLQ** — rejected rows with a reason; curated ingests only good rows.
+
+---
+
+## Links
+
+- **Batch ELT (detailed):** `README_BATCHELT.md`  
+- **Streaming (detailed):** `README_STREAMING.md`
+
+---
+
+## License
+MIT (or your preferred license).
