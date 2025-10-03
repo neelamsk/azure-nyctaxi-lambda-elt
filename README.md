@@ -1,4 +1,7 @@
 # Streaming + Batch ELT → Synapse DW (Hourly + Backfill)
+![Security Scanned](https://img.shields.io/badge/Security-Scanned%20with%20TruffleHog-green)
+![Managed Identity](https://img.shields.io/badge/Auth-Managed%20Identity-blue)
+![RBAC](https://img.shields.io/badge/Access-RBAC%20Enabled-blue)
 
 **One‑liner:** Event Hubs & ASA land **raw/curated/DLQ** to ADLS; ADF loads Synapse **hourly** (with backfill). Batch ELT shares the **same model**. Power BI shows **Last Updated / Latency** so freshness is clear.
 
@@ -104,6 +107,18 @@ README.md     # (this file) — high-level overview
 README_BATCHELT.md   # Batch ELT details
 README_STREAMING.md  # Streaming details
 ```
+---
+
+## 🔒 Security Practices
+
+This repository has been scanned for security vulnerabilities and secrets:
+- **Secret Scanning**: Verified using [TruffleHog](https://github.com/trufflesecurity/trufflehog) - no secrets detected
+- **Managed Identities**: All Azure authentication uses system-assigned managed identities
+- **RBAC**: Least privilege access implemented across all resources
+- **Environment Variables**: Sensitive configuration stored in GitHub Environment Secrets (not in code)
+```bash
+# Security scan performed with:
+trufflehog --regex --entropy=False https://github.com/neelamsk/azure-nyctaxi-lambda-elt
 
 ---
 
