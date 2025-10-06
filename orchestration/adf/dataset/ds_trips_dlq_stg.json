@@ -41,7 +41,7 @@
 		],
 		"typeProperties": {
 			"schema": "stg",
-			"table": "TripsStreaming_Dlq"
+			"table": "TripsStreaming_DlqRaw"
 		}
 	}
 }
