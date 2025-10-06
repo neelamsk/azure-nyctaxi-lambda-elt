@@ -15,8 +15,7 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobStorageLocation",
-				"fileName": "0_efa66a570e1243cf813e03b63bed0f46_1.json",
-				"folderPath": "date=2025/09/29/16",
+				"folderPath": "@{concat('date=', dataset().dir)}",
 				"container": "streaming-dlq"
 			}
 		},
