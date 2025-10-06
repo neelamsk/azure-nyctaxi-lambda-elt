@@ -1,0 +1,18 @@
+{
+	"name": "ds_dlq_folder",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_storage_curated",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"folderPath": "@dataset().dir",
+				"container": "streaming-dlq"
+			}
+		}
+	}
+}
