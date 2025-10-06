@@ -1,187 +1,201 @@
-# NYC Taxi – Streaming Producer (Python)
+# Batch ELT on Azure (Dev) — Raw → Staging → Core → Modeling
 
-This is a tiny Python producer to push sample NYC taxi trip events into **Event Hubs** so your **Azure Stream Analytics (ASA)** job can write JSON lines to Blob Storage.
+> **TL;DR**: This project implements an **ADF-first batch ELT** that lands Parquet to **ADLS Gen2 (raw)**, loads **idempotently** to **Synapse (staging)**, transforms to **Core**, and then builds a **Modeling (Star) layer** with DQ gates, run logging, observability, and a single **orchestrator** pipeline. Optional governance via **Microsoft Purview** shows lineage *(raw → stg → core → mdl)*.
 
-**Current flow**
+![Architecture (Dev)](docs/img/arch-dev-2.jpg)
 
-```
-Producer (this tool) → Event Hubs (nyctaxi-ehns/trips)
-                     → ASA job (asa-nyctaxi-trip)
-                     → Storage (nyctaxistreamsa001 / container: streaming)
-```
 
-## Prerequisites
+---
 
-- Python 3.9+ and `pip`
-- Azure CLI (`az`) logged in with access to the subscription
-- Event Hubs namespace and hub already deployed:
-  - **Resource group**: `rg-nyctaxi-stream`
-  - **Namespace**: `nyctaxi-ehns`
-  - **Event Hub**: `trips`
-- ASA job already created and wired with:
-  - Input **`inEH`** (consumer group `$Default`)
-  - Output **`outBlob`** (storage: `nyctaxistreamsa001`, container: `streaming`)
-  - Transformation: `SELECT * INTO [outBlob] FROM [inEH]`
-  - Job state: **Running** (or you can start it later)
+## 1) Source & Landing (raw)
 
-## Setup
+- Land source files **as-is** to `adls/raw/<dataset>/ingest_date=YYYY-MM-DD/`.
+- Keep raw immutable for backfills/replay and full lineage.
 
-```bash
-# from the repo root
-python3 -m venv .venv
-source .venv/bin/activate           # Windows: .venv\Scripts\activate
-python3 -m pip install --upgrade pip
-python3 -m pip install azure-eventhub
-```
+![Raw files in ADLS](docs/img/adls-raw-listing.png)
 
-## Get a connection string
 
-> The producer uses a **connection string** in `EH_CONN`.
+---
 
-### Option A (least privilege – recommended)
+## 2) Staging
 
-Create a **send-only** policy scoped to the Event Hub:
+- Pipeline: **`pl_raw_to_stg_nyctaxi`**
+- Copies landed files to **`stg.trip`** with minimal typing + lineage columns (`ingest_date`, `source_file_name`, `loaded_at`).
+- Light DQ + run logging to **`ops.run_log` / `ops.dq_result`**.
 
-```bash
-az eventhubs eventhub authorization-rule create \
-  -g rg-nyctaxi-stream \
-  --namespace-name nyctaxi-ehns \
-  --eventhub-name trips \
-  --name sendonly \
-  --rights Send
+---
 
-CONN=$(az eventhubs eventhub authorization-rule keys list \
-  -g rg-nyctaxi-stream \
-  --namespace-name nyctaxi-ehns \
-  --eventhub-name trips \
-  --name sendonly \
-  --query primaryConnectionString -o tsv)
+## 3) Transformation (staging → core)
 
-export EH_CONN="${CONN}"             # already scoped to the hub
-```
+- Pipeline: **`pl_stg_to_core_nyctaxi`** *(called by the orchestrator)*
+- CTAS slice → quarantine rejects → dedupe load to `core.trip_clean` → DQ gate → metrics + logging.
+- Physical: `core.trip_clean` **ROUND_ROBIN + CCI**.
 
-### Option B (quick & dirty – full rights on namespace)
+**Docs:** `sql/docs/README_transform.md` • **Dictionary:** `sql/docs/data_dictionary.md`
 
-> Note: `--namespace-name` is required; `-n` here would be interpreted as `--name` (the auth rule).
+---
 
-```bash
-CONN=$(az eventhubs namespace authorization-rule keys list \
-  -g rg-nyctaxi-stream \
-  --namespace-name nyctaxi-ehns \
-  --name RootManageSharedAccessKey \
-  --query primaryConnectionString -o tsv)
+## 4) Modeling (core → star)
 
-export EH_CONN="${CONN};EntityPath=trips"   # append EntityPath when using namespace-level key
-```
+- Pipeline: **`pl_core_to_mdl_nyctaxi`** *(called by the orchestrator)*
+- Upsert dims (vendor, payment, rate, flag, location) → load `mdl.fact_trip` (hash `trip_id`) → **post-load stats** → **Model DQ** → logging.
+- **BI view:** `mdl.vw_fact_trip_bi` for friendly slicing (PU/DO role-play, measures).
 
-> Windows PowerShell:
-> ```powershell
-> $env:EH_CONN = "$CONN;EntityPath=trips"
-> ```
+**Docs:** `sql/docs/README_modeling.md`
 
-*(Optional)* Verify you set it (redacts endpoint):
-```bash
-echo "$EH_CONN" | sed 's/Endpoint=.*/Endpoint=... (redacted)/'
-```
 
-## Run the producer
+---
 
-```bash
-python3 tools/streaming/producer/send.py
-```
+## 5) Orchestration & Backfill
 
-It sends **5** JSON events and exits:
+- Orchestrator: **`pl_daily_nyctaxi`** runs **raw → stg → core → mdl** with the **same** `run_date`.
+- Single daily trigger (only on orchestrator). Backfill by calling the orchestrator with date lists.
+![Orchestrator success](docs/img/orchestrator_success.png)
 
-```
-sent 5 events
-```
+![Orchestrator runs table](docs/img/orchestrator_runs_table.png)
 
-## Verify data landed
 
-List blobs in the **streaming** container of **nyctaxistreamsa001**:
+---
 
-```bash
-KEY=$(az storage account keys list -g rg-nyctaxi-stream -n nyctaxistreamsa001 --query '[0].value' -o tsv)
-az storage blob list --account-name nyctaxistreamsa001 --account-key "$KEY" -c streaming -o table
-```
+## 6) Observability & Alerts
+![DQ gates timeline](docs/img/dq_gates_timeline.png)
 
-You should see files under a date/time pattern (e.g., `date=YYYY/MM/DD/HH=...`).
+**Tables:** `ops.run_log`, `ops.run_metrics`, `ops.dq_result` (staging, core, modeling stages).  
+**Alerts (Azure Monitor):**  
+- **Pipeline failed runs > 0** on `pl_daily_nyctaxi` (primary alert)  
+- *(Optional)* Activity failed runs > 0, Pipeline duration > N minutes
 
-If nothing shows up, check the ASA job state:
+**Future (optional):**  
+- Log Analytics workbook: pipeline run trend, DQ pass/fail trend, rows_loaded by date.  
+- Add **cost view** (SQL DW pause/resume windows; data processed).
+![DQ results (ops.dq_result)](docs/img/dq_results_sql.png)
+![Run log (ops.run_log)](docs/img/run_log_sql.png)
 
-```bash
-SUB_ID=$(az account show --query id -o tsv)
-JOB_URI="https://management.azure.com/subscriptions/${SUB_ID}/resourceGroups/rg-nyctaxi-stream/providers/Microsoft.StreamAnalytics/streamingjobs/asa-nyctaxi-trip?api-version=2021-10-01-preview"
-az rest --method GET --uri "$JOB_URI" --query properties.jobState -o tsv
-```
 
-Expected: `Running` or `Processing`.
 
-## What the events look like
+---
 
-Each event is a single JSON object, one per line written to blob:
+## 7) Security posture (dev) & prod hardening
 
-```json
-{
-  "vendor_id": "CMT",
-  "pickup_datetime": "2025-09-26T15:20:05.123Z",
-  "dropoff_datetime": "2025-09-26T15:30:05.123Z",
-  "passenger_count": 2,
-  "trip_distance": 3.42,
-  "fare_amount": 12.50,
-  "tip_amount": 2.10,
-  "total_amount": 14.60,
-  "payment_type": "CRD",
-  "rate_code_id": 1,
-  "store_and_fwd_flag": "N"
-}
-```
+**Today (dev):**
+- **AuthN:** Managed Identity on ADF/Synapse; no secrets in code.
+- **AuthZ:** RBAC to Storage & SQL (least privilege).
+- **Purview access:** Purview MI has Storage Blob Data Reader + DB `db_datareader` / `VIEW DEFINITION`.
+- **Data:** NYC Taxi sample has no direct PII; only financial fields (fare/tip/tolls).
 
-> The schema is just for testing; adapt keys/types to your real inbound payload later.
+**Prod hardening plan:**
+- **Secrets:** if any credentials remain, move to **Key Vault**; use MI wherever possible.
+- **Networking:** private endpoints for ADLS, Synapse SQL, and Key Vault; restrict public network access and enable firewall rules/NSGs.
+- **Policies:** enable Defender for Cloud recommendations; enforce “no public access” and “https only” policies; tag resources (env, owner, cost-center).
+- **RBAC hygiene:** least privilege roles; break-glass procedure documented.
+- **Purview governance:** glossary terms for conformed dims; (if PII exists later) apply classifications and masking policies.
 
-## Troubleshooting
+![RBAC: ADF MI on Storage](docs/img/storage-rbac-adf-mi.png)
 
-- **`The messaging entity '...trips' could not be found`**  
-  The connection string is missing `EntityPath=trips` (when using namespace-level key) or points to the wrong hub.
 
-- **`Claim is not valid` / `Unauthorized`**  
-  The SAS policy lacks **Send** rights or is on the wrong scope.
+---
 
-- **No blobs appear**  
-  - ASA job not running or input/output names don’t match (`inEH`, `outBlob`).
-  - Network/IP restrictions on the storage account or Event Hubs.
-  - Check job state with the command above.
+## 8) Governance (Purview)
 
-- **Accidentally committed secrets**  
-  Rotate the SAS key:
-  ```bash
-  az eventhubs eventhub authorization-rule keys renew \
-    -g rg-nyctaxi-stream \
-    --namespace-name nyctaxi-ehns \
-    --eventhub-name trips \
-    --name sendonly \
-    --key PrimaryKey
-  ```
+- **ADLS scan** on `raw/` with a **Pattern rule** to group `ingest_date=` partitions as a **resource set**.  
+- **SQL scan** on the **Dedicated SQL database** to catalog `stg/core/mdl` tables.  
+- **ADF ↔ Purview** connection to emit lineage **process nodes**.
+- **Scheduling order:** Orchestrator run → **ADLS** scan → **SQL** scan (keeps assets + lineage current).
 
-## Security notes
+**Expected lineage:**  
+`raw file → (ADF Copy) → stg.trip → (Script) → core.trip_clean → (Script) → mdl.fact_trip`
 
-- Prefer **event-hub–scoped** SAS policy with **Send** only.
-- Do **not** commit `EH_CONN` to source control.
-- Consider using GitHub Actions **secrets** if you later automate producers.
+![Purview resource set grouping (raw)](docs/img/purview_raw_resource_set.png)
+![Purview lineage for mdl.fact_trip](docs/img/purview_lineage_fact_trip.png)
 
-## Optional: where this goes next (Lambda context)
 
-Right now ASA writes raw JSON lines to blob. Common next steps:
 
-- **Micro-batch** those blobs into your **Synapse Dedicated SQL Pool** (`COPY INTO stg → DQ/core → model tables`), so BI keeps using the same modeled tables it already uses for batch.
-- Or add a **second ASA output** to write **real-time aggregates** directly to serving tables for sub-minute dashboards, while batch keeps full history.
+---
 
-## File layout
+## 9) Repository Structure
+```text
+.
+├── infra/
+│   ├── terraform/          # Batch infrastructure (ADF, Synapse, Purview)
+│   ├── streaming-bicep/    # Streaming infrastructure (EH, ASA)
+│   └── scripts/           # Wire-up and diagnostic scripts
+├── orchestration/
+│   ├── adf/              # ADF pipelines, datasets, linked services
+│   └── synapse/          # Notebooks for advanced transformations
+├── sql/
+│   ├── batchELT/         # Batch SQL objects
+│   │   ├── staging/      # STG schema tables
+│   │   ├── core/         # CORE transformations
+│   │   ├── mdl/          # Model layer (facts/dims)
+│   │   └── ops/          # Operational tables
+│   └── streaming/        # Streaming SQL objects
+├── docs/
+│   ├── img/              # Architecture diagrams, screenshots
+│   ├── README_modeling.md
+│   └── README_transform.md
+├── tools/
+│   └── streaming/
+│       └── producer/     # Python event producer
+├── tests/                # Data quality tests
+└── .github/
+    └── workflows/        # CI/CD pipelines
 
-```
-tools/
-  streaming/
-    producer/
-      send.py       # the producer (uses EH_CONN)
-      README.md     # (this file)
-```
+---
+
+## 10) Operations runbook
+
+**Re-run a day (end-to-end)**  
+- ADF → Monitor → Pipelines → **`pl_daily_nyctaxi`** → *Trigger now*  
+  - `dataset = nyctaxi_yellow`  
+  - `run_date = YYYY-MM-DD`
+
+**Where to look when red**  
+- `SELECT TOP 50 * FROM ops.run_log ORDER BY started_at_utc DESC;`  
+- `SELECT TOP 50 * FROM ops.dq_result ORDER BY created_at_utc DESC;`  
+- `SELECT TOP 50 * FROM ops.run_metrics ORDER BY run_ts_utc DESC;`
+
+---
+
+## 11) BI & Consumption
+
+- Power BI model on `mdl.vw_fact_trip_bi` (DirectQuery)  
+- Consistent KPI measures (Tip %, Avg Fare/km, Night Ride %)  
+- Semantic model + row-level security (if needed)  
+- Performance tuning at scale (partitioning, CTAS load patterns)  
+- Cost hygiene: auto-pause/resume SQL pool; Log Analytics dashboards
+![BI overview (DirectQuery on mdl.vw_fact_trip_bi)](docs/img/pbi_overview.png)
+
+---
+
+## 12) Performance & Optimization
+
+### Optimizations Applied
+- **CTAS for rebuilds** instead of DELETE/INSERT
+- **Clustered Columnstore** for analytical queries
+- **Statistics updates** post-load for query optimizer
+- **Partition switching** for large historical loads (future)
+
+---
+
+## 13 Screenshots to include (portfolio-ready)
+
+Place images in `docs/img/` and reference them from this README.
+
+- **Orchestrator run (green)** with child pipelines expanded — `docs/img/orchestrator_success.png`
+- **Activity timeline** showing `CoreDQ_Gate` and `ModelDQ_Gate` — `docs/img/dq_gates_timeline.png`
+- **DQ results** query (`ops.dq_result` filtered by a date, stage=`core_to_mdl`) — `docs/img/dq_results_sql.png`
+- **Run log** query (`ops.run_log` last runs) — `docs/img/run_log_sql.png`
+- **Purview lineage** for `mdl.fact_trip` (show process nodes) — `docs/img/purview_lineage_fact_trip.png`
+- **Raw resource set** (grouped `ingest_date=` partitions) — `docs/img/purview_raw_resource_set.png`
+- **BI visual** (Trips by date; matrix by payment type × borough) — `docs/img/pbi_overview.png`
+
+---
+
+## Related docs
+- **High-level README**: `README.md`
+- **Streaming ELT**: `README_STREAMING.md`
+
+---
+
+## License
+MIT (or your preferred license).
