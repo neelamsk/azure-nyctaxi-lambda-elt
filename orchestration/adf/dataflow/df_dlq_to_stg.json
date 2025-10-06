@@ -15,6 +15,10 @@
 			"sinks": [],
 			"transformations": [],
 			"scriptLines": [
+				"parameters{",
+				"     pRunId as string,",
+				"     pHourPath as string",
+				"}",
 				"source(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false,",
