@@ -19,40 +19,6 @@
 				"container": "streaming-dlq"
 			}
 		},
-		"schema": {
-			"type": "object",
-			"properties": {
-				"eventId": {
-					"type": "null"
-				},
-				"tpepPickupDatetime": {
-					"type": "null"
-				},
-				"tpepDropoffDatetime": {
-					"type": "null"
-				},
-				"vendorId": {
-					"type": "null"
-				},
-				"tripDistance": {
-					"type": "null"
-				},
-				"totalAmount": {
-					"type": "null"
-				},
-				"durationMin": {
-					"type": "null"
-				},
-				"reason": {
-					"type": "string"
-				},
-				"enqueuedTs": {
-					"type": "string"
-				},
-				"date": {
-					"type": "string"
-				}
-			}
-		}
+		"schema": {}
 	}
 }
