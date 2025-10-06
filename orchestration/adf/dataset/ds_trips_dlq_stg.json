@@ -1,0 +1,47 @@
+{
+	"name": "ds_trips_dlq_stg",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_syn_sql",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlDWTable",
+		"schema": [
+			{
+				"name": "reason",
+				"type": "nvarchar"
+			},
+			{
+				"name": "ingest_date",
+				"type": "date"
+			},
+			{
+				"name": "source_file_name",
+				"type": "nvarchar"
+			},
+			{
+				"name": "loaded_at",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "_runId",
+				"type": "nvarchar"
+			},
+			{
+				"name": "_blobPath",
+				"type": "nvarchar"
+			},
+			{
+				"name": "_ingestedAt",
+				"type": "datetime2",
+				"scale": 3
+			}
+		],
+		"typeProperties": {
+			"schema": "stg",
+			"table": "TripsStreaming_Dlq"
+		}
+	}
+}
