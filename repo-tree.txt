@@ -1,0 +1,124 @@
+.
+├── .DS_Store
+├── .github
+│   └── workflows
+│       ├── streaming-bicep-deploy.yml
+│       ├── streaming-bicep-whatif.yml
+│       ├── terraform-apply-dev.yml
+│       └── terraform-plan.yml
+├── .gitignore
+├── Ingest
+│   ├── azcopy_example.sh
+│   ├── backfill_dates.sh
+│   ├── readme.md
+│   └── upload_raw.sh
+├── README.md
+├── README_BATCHELT.md
+├── README_STREAMING.md
+├── data
+│   └── raw
+│       └── yellow_tripdata_2025-07.parquet
+├── docs
+│   ├── README_modeling.md
+│   ├── README_transform.md
+│   ├── batch ELT final.drawio
+│   └── img
+│       ├── adf-copy-rowscopied.png
+│       ├── adf-monitor-success.png
+│       ├── adf-trigger-tumbling.png
+│       ├── adls-raw-listing.png
+│       ├── arch-dev-2.jpg
+│       ├── arch-dev.jpg
+│       ├── dq_gates_timeline.png
+│       ├── dq_results_sql.png
+│       ├── law-adf-activity-failures.png
+│       ├── law-adf-copy-rowscopied.png
+│       ├── law-adf-daily-trend.png
+│       ├── law-adf-failed-runs.png
+│       ├── law-storage-blob-ops.png
+│       ├── orchestrator_runs_table.png
+│       ├── orchestrator_success.png
+│       ├── pbi_overview.png
+│       ├── purview-lineage-stg.png
+│       ├── purview-scans.png
+│       ├── purview_lineage_fact_trip.png
+│       ├── purview_raw_resource_set.png
+│       ├── sql-dq-results.png
+│       ├── sql-run-log.png
+│       ├── sql-stg-rowcount.png
+│       └── storage-rbac-adf-mi.png
+├── infra
+│   ├── .DS_Store
+│   ├── scripts
+│   │   ├── asa-wire.sh
+│   │   ├── diag-attach.sh
+│   │   └── streaming pipeline.sh
+│   ├── streaming-bicep
+│   │   ├── main.bicep
+│   │   ├── modules
+│   │   └── params.dev.json
+│   └── terraform
+│       ├── .DS_Store
+│       ├── .terraform
+│       ├── .terraform.lock.hcl
+│       ├── diagnostics.tf
+│       ├── env
+│       ├── governance_purview.tf
+│       ├── locals.tf
+│       ├── main.tf
+│       ├── ok.tfplan
+│       ├── output.tf
+│       ├── providers.tf
+│       ├── run1.tfplan
+│       ├── terraform.tfvars.example
+│       └── variables.tf
+├── orchestration
+│   ├── .DS_Store
+│   ├── adf
+│   │   ├── .DS_Store
+│   │   ├── dataset
+│   │   ├── factory
+│   │   ├── linkedService
+│   │   ├── pipeline
+│   │   ├── publish_config.json
+│   │   └── trigger
+│   └── synapse
+│       ├── credential
+│       ├── integrationRuntime
+│       ├── linkedService
+│       ├── notebook
+│       ├── publish_config.json
+│       └── sqlscript
+├── repo-tree.txt
+├── reports
+├── scripts
+│   ├── backfill_dates.sh
+│   └── trigger_stage.sh
+├── sql
+│   ├── 00_schemas.sql
+│   ├── batchELT
+│   │   ├── core
+│   │   ├── docs
+│   │   ├── err
+│   │   ├── mdl
+│   │   ├── ops
+│   │   ├── ref
+│   │   ├── security
+│   │   └── staging
+│   ├── streaming
+│   │   └── staging
+│   └── test
+│       └── 40_data_quality.sql
+├── tests
+│   └── 40_data_quality.sql
+├── tools
+│   └── streaming
+│       └── producer
+└── warehouse
+    ├── dims
+    ├── etl
+    ├── facts
+    ├── performance
+    └── security
+
+53 directories, 69 files

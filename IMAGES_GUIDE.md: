@@ -1,0 +1,23 @@
+# Visual Documentation Guide
+
+## Architecture Diagrams
+- `arch-dev.jpg` - High-level Lambda architecture
+- `arch-dev-2.jpg` - Detailed component view
+
+## Operational Excellence
+- `adf-monitor-success.png` - Pipeline monitoring dashboard
+- `orchestrator_success.png` - Successful orchestration runs
+- `law-adf-daily-trend.png` - Daily processing trends
+
+## Data Quality & Governance  
+- `dq_gates_timeline.png` - DQ check timeline
+- `purview-lineage-stg.png` - Data lineage visualization
+- `purview_lineage_fact_trip.png` - Fact table lineage
+
+## Performance Monitoring
+- `law-storage-blob-ops.png` - Storage operations metrics
+- `sql-stg-rowcount.png` - Row count validations
+- `pbi_overview.png` - Business dashboard
+
+## Security
+- `storage-rbac-adf-mi.png` - RBAC configuration with Managed Identity

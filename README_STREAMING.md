@@ -41,20 +41,6 @@ Synapse (model) → Power BI (view: mdl.vw_fact_trip_bi)
 
 ---
 
-## Repo layout (suggested)
-```
-/infra        # Bicep/ARM + GitHub Actions
-/asa          # asa-wire.sh, ASA query notes
-/adf          # pipelines (JSON export) & parameter docs
-/sql          # table DDLs, procs, views
-/bi           # PBIX (optional) or screenshots
-README.md     # High-level readme (links to batch & streaming)
-README_BATCHELT.md
-README_STREAMING.md  # this file
-```
-
----
-
 ## Components & responsibilities
 
 ### Azure Event Hubs

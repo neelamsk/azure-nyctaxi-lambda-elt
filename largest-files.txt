@@ -1,0 +1,40 @@
+8.0K	sql/batchELT/docs/data_dictionary.md
+8.0K	sql/batchELT/mdl/load/40_fact_trip.load.sql
+8.0K	sql/batchELT/security/100_stg_trip.sql
+8.0K	sql/batchELT/staging/stg_trip.sql
+8.0K	sql/streaming/staging/usp_upsert_fact_trip_streaming.sql
+8.0K	tools/streaming/producer/readme.md
+ 12K	.github/workflows/streaming-bicep-deploy.yml
+ 12K	README_STREAMING.md
+ 12K	infra/scripts/asa-wire.sh
+ 12K	orchestration/synapse/notebook/nb_convert_parquet_to_snappy.json
+ 16K	infra/terraform/ok.tfplan
+ 20K	orchestration/adf/pipeline/pl_stg_to_core_nyctaxi.json
+ 24K	docs/batch ELT final.drawio
+ 24K	orchestration/adf/pipeline/pl_core_to_mdl_nyctaxi.json
+ 24K	orchestration/adf/pipeline/pl_raw_to_stg_nyctaxi.json
+ 28K	orchestration/adf/pipeline/pl_streaming_curated_to_stg_core_mdl.json
+ 44K	docs/img/arch-dev.jpg
+104K	docs/img/adf-monitor-success.png
+116K	docs/img/storage-rbac-adf-mi.png
+120K	docs/img/arch-dev-2.jpg
+152K	docs/img/adls-raw-listing.png
+220K	docs/img/dq_gates_timeline.png
+240K	docs/img/adf-trigger-tumbling.png
+244K	docs/img/law-adf-daily-trend.png
+248K	docs/img/orchestrator_runs_table.png
+252K	docs/img/purview-scans.png
+252K	docs/img/sql-stg-rowcount.png
+296K	docs/img/sql-dq-results.png
+304K	docs/img/law-adf-failed-runs.png
+320K	docs/img/dq_results_sql.png
+324K	docs/img/purview-lineage-stg.png
+348K	docs/img/purview_raw_resource_set.png
+356K	docs/img/sql-run-log.png
+360K	docs/img/purview_lineage_fact_trip.png
+364K	docs/img/law-adf-copy-rowscopied.png
+396K	docs/img/orchestrator_success.png
+416K	docs/img/adf-copy-rowscopied.png
+460K	docs/img/law-storage-blob-ops.png
+512K	docs/img/pbi_overview.png
+516K	docs/img/law-adf-activity-failures.png
