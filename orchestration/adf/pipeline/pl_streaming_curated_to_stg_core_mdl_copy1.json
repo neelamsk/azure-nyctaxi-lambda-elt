@@ -1,0 +1,292 @@
+{
+	"name": "pl_streaming_curated_to_stg_core_mdl_copy1",
+	"properties": {
+		"activities": [
+			{
+				"name": "SetHourPath",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "hourPath",
+					"value": {
+						"value": "@formatDateTime(\n    coalesce(pipeline().parameters.fixedHourUtc, formatDateTime(addHours(utcNow(), -1), 'yyyy-MM-ddTHH:00:00Z')),\n    'yyyy/MM/dd/HH'\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "CheckDlqFolder",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "SetHourPath",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_dlq_folder",
+						"type": "DatasetReference",
+						"parameters": {
+							"dir": {
+								"value": "@concat('date=', variables('hourPath'))",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "IfDlqExists",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "CheckDlqFolder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('CheckDlqFolder').output.exists, true)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "CopyDlqToStg",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"additionalColumns": [
+										{
+											"name": "_runId",
+											"value": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "_blobPath",
+											"value": {
+												"value": "@concat('streaming-dlq/',variables('hourPath'),'?*')",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "_ingestedAt",
+											"value": {
+												"value": "@utcNow()",
+												"type": "Expression"
+											}
+										}
+									],
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"wildcardFolderPath": {
+											"value": "@concat('date=', variables('hourPath'))",
+											"type": "Expression"
+										},
+										"wildcardFileName": "*.json",
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings",
+										"filePattern": "setOfObjects"
+									}
+								},
+								"sink": {
+									"type": "SqlDWSink",
+									"writeBehavior": "Insert"
+								},
+								"enableStaging": true,
+								"stagingSettings": {
+									"linkedServiceName": {
+										"referenceName": "ls_storage_curated",
+										"type": "LinkedServiceReference"
+									},
+									"path": "adf-staging"
+								},
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"path": "$['reason']"
+											},
+											"sink": {
+												"name": "reason",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "$['_runId']"
+											},
+											"sink": {
+												"name": "_runId",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "$['_blobPath']"
+											},
+											"sink": {
+												"name": "_blobPath",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "$['_ingestedAt']"
+											},
+											"sink": {
+												"name": "_ingestedAt",
+												"type": "DateTime"
+											}
+										}
+									]
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_dlq_json",
+									"type": "DatasetReference",
+									"parameters": {
+										"dir": "@variables('hourPath')"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_trips_dlq_stg",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "LogQualityForRun",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "CopyDlqToStg",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[stg].[usp_log_quality_for_run]",
+								"storedProcedureParameters": {
+									"hourPath": {
+										"value": {
+											"value": "@variables('hourPath')",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"runId": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_syn_sql",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"curatedContainer": {
+				"type": "string",
+				"defaultValue": "streaming-curated"
+			},
+			"curatedPrefix": {
+				"type": "string",
+				"defaultValue": "streaming-curated"
+			},
+			"processMode": {
+				"type": "string",
+				"defaultValue": "lastHour"
+			},
+			"fixedHourUtc": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"year": {
+				"type": "String"
+			},
+			"month": {
+				"type": "String"
+			},
+			"day": {
+				"type": "String"
+			},
+			"hour": {
+				"type": "String"
+			},
+			"hourPath": {
+				"type": "String"
+			},
+			"files": {
+				"type": "Array"
+			}
+		},
+		"annotations": []
+	}
+}
