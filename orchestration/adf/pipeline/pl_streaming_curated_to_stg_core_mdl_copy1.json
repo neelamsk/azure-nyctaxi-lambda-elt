@@ -135,7 +135,7 @@
 								},
 								"sink": {
 									"type": "SqlDWSink",
-									"writeBehavior": "Insert"
+									"allowCopyCommand": true
 								},
 								"enableStaging": true,
 								"stagingSettings": {
@@ -150,10 +150,10 @@
 									"mappings": [
 										{
 											"source": {
-												"path": "$['reason']"
+												"path": "$"
 											},
 											"sink": {
-												"name": "reason",
+												"name": "json_line",
 												"type": "String"
 											}
 										},
