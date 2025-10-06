@@ -7,38 +7,7 @@
 		},
 		"annotations": [],
 		"type": "AzureSqlDWTable",
-		"schema": [
-			{
-				"name": "reason",
-				"type": "nvarchar"
-			},
-			{
-				"name": "ingest_date",
-				"type": "date"
-			},
-			{
-				"name": "source_file_name",
-				"type": "nvarchar"
-			},
-			{
-				"name": "loaded_at",
-				"type": "datetime2",
-				"scale": 3
-			},
-			{
-				"name": "_runId",
-				"type": "nvarchar"
-			},
-			{
-				"name": "_blobPath",
-				"type": "nvarchar"
-			},
-			{
-				"name": "_ingestedAt",
-				"type": "datetime2",
-				"scale": 3
-			}
-		],
+		"schema": [],
 		"typeProperties": {
 			"schema": "stg",
 			"table": "TripsStreaming_DlqRaw"
