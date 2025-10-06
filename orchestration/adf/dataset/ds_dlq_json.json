@@ -1,0 +1,54 @@
+{
+	"name": "ds_dlq_json",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_storage_curated",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": "0_efa66a570e1243cf813e03b63bed0f46_1.json",
+				"folderPath": "date=2025/09/29/16",
+				"container": "streaming-dlq"
+			}
+		},
+		"schema": {
+			"type": "object",
+			"properties": {
+				"eventId": {
+					"type": "null"
+				},
+				"tpepPickupDatetime": {
+					"type": "null"
+				},
+				"tpepDropoffDatetime": {
+					"type": "null"
+				},
+				"vendorId": {
+					"type": "null"
+				},
+				"tripDistance": {
+					"type": "null"
+				},
+				"totalAmount": {
+					"type": "null"
+				},
+				"durationMin": {
+					"type": "null"
+				},
+				"reason": {
+					"type": "string"
+				},
+				"enqueuedTs": {
+					"type": "string"
+				},
+				"date": {
+					"type": "string"
+				}
+			}
+		}
+	}
+}
