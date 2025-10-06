@@ -6,12 +6,341 @@
 			"type": "string",
 			"metadata": "Data Factory name",
 			"defaultValue": "eltazr3-adf"
+		},
+		"t_daily_nyctaxi_properties_pipeline_parameters_dataset": {
+			"type": "string",
+			"defaultValue": "nyctaxi_yellow"
+		},
+		"t_daily_nyctaxi_properties_pipeline_parameters_run_date": {
+			"type": "string",
+			"defaultValue": "2025-07-31"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_streaming_backfill_range')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SetcurrentHour",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "currentHour",
+							"value": {
+								"value": "@formatDateTime(pipeline().parameters.startHourUtc, 'yyyy-MM-ddTHH:00:00Z')\n",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "SetcurrentHour",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@greater(variables('currentHour'), pipeline().parameters.endHourUtc)\n",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "ExecuteHour",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"fixedHourUtc": {
+												"value": "@variables('currentHour')",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "ComputeNextHour",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "ExecuteHour",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "nextHour",
+										"value": {
+											"value": "@formatDateTime(addHours(variables('currentHour'), 1), 'yyyy-MM-ddTHH:00:00Z')",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "AdvanceHour",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "ComputeNextHour",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "currentHour",
+										"value": {
+											"value": "@variables('nextHour')",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"startHourUtc": {
+						"type": "string"
+					},
+					"endHourUtc": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"currentHour": {
+						"type": "String"
+					},
+					"nextHour": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_streaming_backfill')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "IflastHour",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(pipeline().parameters.processMode, 'lastHour')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ExecutePipeline_lastHour",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"fixedHourUtc": {
+												"value": "@pipeline().parameters.fixedHourUtc",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "IffixedHour",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(pipeline().parameters.processMode, 'fixedHour')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ExecutePipeline_fixedHour",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_curated_to_stg_core_mdl",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"fixedHourUtc": {
+												"value": "@pipeline().parameters.fixedHourUtc",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Ifrange",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(pipeline().parameters.processMode, 'range')",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ExecutePipeline_range",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_streaming_backfill_range",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"startHourUtc": {
+												"value": "@pipeline().parameters.startHourUtc",
+												"type": "Expression"
+											},
+											"endHourUtc": {
+												"value": "@pipeline().parameters.endHourUtc",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"concurrency": 1,
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"processMode": {
+						"type": "string",
+						"defaultValue": "lastHour"
+					},
+					"fixedHourUtc": {
+						"type": "string"
+					},
+					"startHourUtc": {
+						"type": "string"
+					},
+					"endHourUtc": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"currentHour": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_streaming_backfill_range')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/t_daily_nyctaxi')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipeline": {
+					"pipelineReference": {
+						"referenceName": "pl_daily_nyctaxi",
+						"type": "PipelineReference"
+					},
+					"parameters": {
+						"dataset": "[parameters('t_daily_nyctaxi_properties_pipeline_parameters_dataset')]",
+						"run_date": "[parameters('t_daily_nyctaxi_properties_pipeline_parameters_run_date')]"
+					}
+				},
+				"type": "TumblingWindowTrigger",
+				"typeProperties": {
+					"frequency": "Hour",
+					"interval": 24,
+					"startTime": "2025-09-19T17:54:00Z",
+					"endTime": "2025-09-20T17:54:00Z",
+					"delay": "00:00:00",
+					"maxConcurrency": 50,
+					"retryPolicy": {
+						"intervalInSeconds": 30
+					},
+					"dependsOn": []
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/t_hourly_backfill_streaming')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -39,7 +368,9 @@
 					}
 				}
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_streaming_backfill')]"
+			]
 		}
 	]
 }
