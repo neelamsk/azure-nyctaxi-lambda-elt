@@ -2,7 +2,7 @@
 
 > **TL;DR**: This project implements an **ADF-first batch ELT** that lands Parquet to **ADLS Gen2 (raw)**, loads **idempotently** to **Synapse (staging)**, transforms to **Core**, and then builds a **Modeling (Star) layer** with DQ gates, run logging, observability, and a single **orchestrator** pipeline. Optional governance via **Microsoft Purview** shows lineage *(raw → stg → core → mdl)*.
 
-![Architecture (Dev)](docs/img/arch-dev-2.jpg)
+![Architecture (Dev)](docs/img/batch-ELT-final.jpg)
 
 
 ---

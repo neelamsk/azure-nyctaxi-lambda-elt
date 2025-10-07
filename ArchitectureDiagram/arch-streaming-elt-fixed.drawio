@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="22.0.8">
+  <diagram name="Streaming ELT Architecture">
+    <mxGraphModel dx="1440" dy="768" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <!-- Producers -->
+        <mxCell id="producer" parent="1" value="Python Producer (Event Hub client)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#6b6b6b;" vertex="1">
+          <mxGeometry x="40" y="200" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <!-- Event Hub -->
+        <mxCell id="eventhub" parent="1" value="Azure Event Hubs (topic: trips)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddf5df;strokeColor=#2f8f2f;" vertex="1">
+          <mxGeometry x="300" y="200" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <!-- ASA -->
+        <mxCell id="asa" parent="1" value="Azure Stream Analytics (parse + DQ + split)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3b0;strokeColor=#b9a100;" vertex="1">
+          <mxGeometry x="580" y="200" width="260" height="60" as="geometry"/>
+        </mxCell>
+        <!-- ADLS nodes -->
+        <mxCell id="curated" parent="1" value="ADLS streaming-curated (CSV)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddf5df;strokeColor=#2f8f2f;" vertex="1">
+          <mxGeometry x="890" y="60" width="260" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="raw" parent="1" value="ADLS streaming-raw (JSONL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddf5df;strokeColor=#2f8f2f;" vertex="1">
+          <mxGeometry x="890" y="150" width="260" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="dlq" parent="1" value="ADLS streaming-dlq (JSON)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddf5df;strokeColor=#2f8f2f;" vertex="1">
+          <mxGeometry x="890" y="240" width="260" height="60" as="geometry"/>
+        </mxCell>
+        <!-- ADF -->
+        <mxCell id="adf" parent="1" value="ADF: pl_streaming_curated_to_stg_core_mdl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3b0;strokeColor=#b9a100;" vertex="1">
+          <mxGeometry x="1190" y="60" width="320" height="60" as="geometry"/>
+        </mxCell>
+        <!-- Synapse -->
+        <mxCell id="stg" parent="1" value="stg.TripsStreaming" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddf5df;strokeColor=#2f8f2f;" vertex="1">
+          <mxGeometry x="1550" y="60" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="core" parent="1" value="core.trip_clean &amp; *_slice (build slice / upsert clean)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddf5df;strokeColor=#2f8f2f;" vertex="1">
+          <mxGeometry x="1800" y="60" width="320" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="mdl" parent="1" value="mdl.fact_trip + dims (usp_upsert_fact_trip_streaming)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ddf5df;strokeColor=#2f8f2f;" vertex="1">
+          <mxGeometry x="2150" y="60" width="360" height="60" as="geometry"/>
+        </mxCell>
+        <!-- Power BI -->
+        <mxCell id="pbi" parent="1" value="Power BI (vw_fact_trip_bi)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#6b6b6b;" vertex="1">
+          <mxGeometry x="2540" y="60" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <!-- Monitoring -->
+        <mxCell id="loganalytics" parent="1" value="Log Analytics (diagnostics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#6b6b6b;" vertex="1">
+          <mxGeometry x="1190" y="260" width="260" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="alerts" parent="1" value="Azure Alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#6b6b6b;" vertex="1">
+          <mxGeometry x="1470" y="260" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <!-- Edges -->
+        <mxCell id="e1" parent="1" edge="1" source="producer" target="eventhub" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" parent="1" value="input: inEH" edge="1" source="eventhub" target="asa" style="endArrow=block;strokeWidth=2;labelBackgroundColor=none;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" parent="1" value="output: outCuratedCsv" edge="1" source="asa" target="curated" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" parent="1" value="output: outBlob (raw)" edge="1" source="asa" target="raw" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" parent="1" value="output: outDlqJson (rejects)" edge="1" source="asa" target="dlq" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" parent="1" value="Copy CSV &#8594; stg" edge="1" source="curated" target="adf" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" parent="1" value="Copy" edge="1" source="adf" target="stg" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" parent="1" value="build slice / upsert clean" edge="1" source="stg" target="core" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" parent="1" value="upsert dims + fact" edge="1" source="core" target="mdl" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" parent="1" value="view" edge="1" source="mdl" target="pbi" style="endArrow=block;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Diagnostics / Alerts (dashed) -->
+        <mxCell id="e11" parent="1" edge="1" source="asa" target="loganalytics" style="endArrow=open;dashed=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" parent="1" edge="1" source="eventhub" target="loganalytics" style="endArrow=open;dashed=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e13" parent="1" edge="1" source="curated" target="loganalytics" style="endArrow=open;dashed=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e14" parent="1" edge="1" source="adf" target="alerts" style="endArrow=open;dashed=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

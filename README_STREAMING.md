@@ -7,6 +7,9 @@ Event Hubs → Stream Analytics (ASA) parses & applies DQ → ADLS Gen2 stores *
 
 ## Architecture (high-level)
 
+
+![Architecture (Dev)](docs/img/arch-streaming-elt-fixed.jpg)
+
 ```
 Producer (Python/app)
    └─> Azure Event Hubs (Hub: trips)
@@ -62,6 +65,7 @@ Synapse (model) → Power BI (view: mdl.vw_fact_trip_bi)
   - **Raw JSONL** → `streaming/…/date=YYYY/MM/DD/time=HH/` (full fidelity).
   - **Curated CSV** → `streaming-curated/...` (only rows that pass all DQ checks).
   - **DLQ JSON** → `streaming-dlq/...` (rows that fail **any** check + `reason`).
+  
 
 > Hourly folders come from ASA output path pattern; files flush throughout the hour.
 
@@ -230,6 +234,33 @@ Synapse (model) → Power BI (view: mdl.vw_fact_trip_bi)
   Use a temp var (`nextHour`): compute nextHour from currentHour, then assign currentHour = nextHour.
 - **No inserts**  
   Likely all rows **matched** (only updates). Verify with a dry-run query comparing slice vs fact; ensure keys and precisions match the batch recipe.
+
+---
+
+## Screenshots
+
+![Streaming architecture](docs/img/streaming_arch.png)
+
+**Stream Analytics (ASA)**
+![ASA job overview](docs/img/asa_job_overview.png)
+![ASA query & sinks](docs/img/asa_query_and_sinks.png)
+
+**ADLS curated hour**
+![Curated hour folder](docs/img/adls_curated_hour.png)
+
+**ADF hour pipeline run**
+![ADF run (hour)](docs/img/adf_streaming_hour_gantt.png)
+
+**Synapse verification**
+![Slice count (post/purge)](docs/img/synapse_slice_count.png)
+![Recent fact upserts](docs/img/synapse_fact_recent.png)
+
+**Power BI freshness**
+![PBI – Last Updated](docs/img/pbi_last_updated.png)
+
+**Purview lineage (optional)**
+![Purview lineage](docs/img/purview_streaming_lineage.png)
+
 
 ---
 
