@@ -239,7 +239,7 @@ Synapse (model) → Power BI (view: mdl.vw_fact_trip_bi)
 
 ## Screenshots
 
-![Streaming architecture](docs/img/streaming_arch.png)
+![Streaming architecture](docs/img/arch-streaming-elt-fixed.jpg)
 
 **Stream Analytics (ASA)**
 ![ASA job overview](docs/img/asa_job_overview.png)
@@ -264,8 +264,8 @@ Synapse (model) → Power BI (view: mdl.vw_fact_trip_bi)
 ---
 
 ## Related docs
-- **High-level README**: `README.md`
-- **Batch ELT**: `README_BATCHELT.md`
+- **High-level README**: [README.md](./README.md)
+- **Batch ELT**: [README_BATCHELT.md](./README_BATCHELT.md)
 
 ---
 

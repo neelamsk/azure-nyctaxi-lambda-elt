@@ -215,8 +215,8 @@ This project demonstrates enterprise patterns for:
 
 ## Docs
 
-- **Batch ELT (detailed):** `README_BATCHELT.md`  
-- **Streaming (detailed):** `README_STREAMING.md`
+- **Batch ELT (detailed):** [README_BATCHELT.md](./README_BATCHELT.md)
+- **Streaming (detailed):** [README_STREAMING.md](./README_STREAMING.md)
 
 ---
 
