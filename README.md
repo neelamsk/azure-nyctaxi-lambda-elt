@@ -169,6 +169,8 @@ Power BI → reads from Synapse view (shared by batch & streaming)
     └── workflows/        # CI/CD pipelines
 ---
 
+``` 
+
 ## Security Practices
 
 This repository has been scanned for security vulnerabilities and secrets:
