@@ -167,9 +167,11 @@ Power BI → reads from Synapse view (shared by batch & streaming)
 ├── tests/                # Data quality tests
 └── .github/
     └── workflows/        # CI/CD pipelines
----
+
 
 ``` 
+
+---
 
 ## Security Practices
 
@@ -181,7 +183,7 @@ This repository has been scanned for security vulnerabilities and secrets:
 ```bash
 # Security scan performed with:
 trufflehog --regex --entropy=False https://github.com/neelamsk/azure-nyctaxi-lambda-elt
-```  # 
+```  
 
 ---
 
