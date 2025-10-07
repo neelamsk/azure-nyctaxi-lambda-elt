@@ -140,6 +140,7 @@
 └── .github/
     └── workflows/        # CI/CD pipelines
 
+```
 ---
 
 ## 10) Operations runbook
@@ -192,8 +193,8 @@ Place images in `docs/img/` and reference them from this README.
 ---
 
 ## Related docs
-- **High-level README**: `README.md`
-- **Streaming ELT**: `README_STREAMING.md`
+- **High-level README**: [README.md](./README.md)
+- **Streaming ELT**: [README_STREAMING.md](./README_STREAMING.md)
 
 ---
 

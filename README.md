@@ -167,6 +167,10 @@ Power BI → reads from Synapse view (shared by batch & streaming)
 ├── tests/                # Data quality tests
 └── .github/
     └── workflows/        # CI/CD pipelines
+
+
+``` 
+
 ---
 
 ## Security Practices
@@ -179,13 +183,12 @@ This repository has been scanned for security vulnerabilities and secrets:
 ```bash
 # Security scan performed with:
 trufflehog --regex --entropy=False https://github.com/neelamsk/azure-nyctaxi-lambda-elt
-```  # 
+```  
 
 ---
 
-### Add Learning Outcomes
-```markdown
-## 📚 What You'll Learn
+
+## What You'll Learn
 
 This project demonstrates enterprise patterns for:
 - Building resilient streaming pipelines with proper error handling
@@ -212,8 +215,8 @@ This project demonstrates enterprise patterns for:
 
 ## Docs
 
-- **Batch ELT (detailed):** `README_BATCHELT.md`  
-- **Streaming (detailed):** `README_STREAMING.md`
+- **Batch ELT (detailed):** [README_BATCHELT.md](./README_BATCHELT.md)
+- **Streaming (detailed):** [README_STREAMING.md](./README_STREAMING.md)
 
 ---
 
