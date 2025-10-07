@@ -3,7 +3,7 @@
 ![Managed Identity](https://img.shields.io/badge/Auth-Managed%20Identity-blue)
 ![RBAC](https://img.shields.io/badge/Access-RBAC%20Enabled-blue)
 
-## 🎯 Business Problem
+## Business Problem
 Processing 1M+ daily NYC taxi trips in near real-time while maintaining a single source of truth for business intelligence. Achieves <60 minute data freshness with automatic quality checks and failure recovery.
 
 **Impact:** Enables data-driven decisions on fleet optimization, demand forecasting, and pricing strategies with hourly granularity.
@@ -32,7 +32,7 @@ Batch files (landing) → ADF (copy/transform) → Synapse (stg → core → mdl
 Power BI → reads from Synapse view (shared by batch & streaming)
 
 
-## 🏗 Lambda Architecture Implementation
+## Lambda Architecture Implementation
 
 ### Batch Layer (Cold Path)
 - **Frequency**: Daily full refresh + hourly incremental
@@ -60,7 +60,7 @@ Power BI → reads from Synapse view (shared by batch & streaming)
 - **Shared model**: both lanes feed `mdl.fact_trip` & dims → BI stays unchanged.
 
 ---
-## 🛠 Technologies Demonstrated
+## Technologies Demonstrated
 
 | Category | Technologies | Key Patterns |
 |----------|-------------|--------------|
@@ -137,7 +137,7 @@ Power BI → reads from Synapse view (shared by batch & streaming)
 
 ---
 
-## 9) Repository Structure
+## Repository Structure
 ```text
 .
 ├── infra/
@@ -166,7 +166,7 @@ Power BI → reads from Synapse view (shared by batch & streaming)
     └── workflows/        # CI/CD pipelines
 ---
 
-## 🔒 Security Practices
+## Security Practices
 
 This repository has been scanned for security vulnerabilities and secrets:
 - **Secret Scanning**: Verified using [TruffleHog](https://github.com/trufflesecurity/trufflehog) - no secrets detected
@@ -180,7 +180,7 @@ trufflehog --regex --entropy=False https://github.com/neelamsk/azure-nyctaxi-lam
 
 ---
 
-### 5. Add Learning Outcomes
+### Add Learning Outcomes
 ```markdown
 ## 📚 What You'll Learn
 
@@ -195,8 +195,6 @@ This project demonstrates enterprise patterns for:
 
 ---
 
-## Troubleshooting Guide
-
 ### Common Issues & Solutions
 
 | Issue | Check | Solution |
@@ -209,10 +207,15 @@ This project demonstrates enterprise patterns for:
 
 ---
 
-## Links
+## Docs
 
 - **Batch ELT (detailed):** `README_BATCHELT.md`  
 - **Streaming (detailed):** `README_STREAMING.md`
+
+---
+
+## Result (screenshot)
+![Power BI](docs/img/pbi_last_updated.png)
 
 ---
 
