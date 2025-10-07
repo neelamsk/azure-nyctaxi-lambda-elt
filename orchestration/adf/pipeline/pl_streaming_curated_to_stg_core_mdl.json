@@ -396,7 +396,11 @@
 							"inputs": [
 								{
 									"referenceName": "ds_curated_csv",
-									"type": "DatasetReference"
+									"type": "DatasetReference",
+									"parameters": {
+										"folderPath": "@variables('hourPath')",
+										"fileName": "@item().name"
+									}
 								}
 							],
 							"outputs": [
@@ -595,7 +599,7 @@
 				"typeProperties": {
 					"variableName": "hourPath",
 					"value": {
-						"value": "@formatDateTime(\n    coalesce(pipeline().parameters.fixedHourUtc, formatDateTime(addHours(utcNow(), -1), 'yyyy-MM-ddTHH:00:00Z')),\n    'yyyy/MM/dd/HH'\n)\n",
+						"value": "@concat('date=', formatDateTime(\n    coalesce(pipeline().parameters.fixedHourUtc, formatDateTime(addHours(utcNow(), -1), 'yyyy-MM-ddTHH:00:00Z')),\n    'yyyy/MM/dd/HH'\n))",
 						"type": "Expression"
 					}
 				}
