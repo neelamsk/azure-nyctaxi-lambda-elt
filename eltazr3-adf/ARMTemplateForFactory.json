@@ -2358,7 +2358,10 @@
 										{
 											"referenceName": "ds_curated_csv",
 											"type": "DatasetReference",
-											"parameters": {}
+											"parameters": {
+												"folderPath": "@variables('hourPath')",
+												"fileName": "@item().name"
+											}
 										}
 									],
 									"outputs": [
@@ -3061,6 +3064,14 @@
 				"linkedServiceName": {
 					"referenceName": "ls_storage_curated",
 					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"folderPath": {
+						"type": "string"
+					},
+					"fileName": {
+						"type": "string"
+					}
 				},
 				"annotations": [],
 				"type": "DelimitedText",
