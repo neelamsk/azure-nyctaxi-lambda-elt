@@ -140,6 +140,7 @@
 └── .github/
     └── workflows/        # CI/CD pipelines
 
+```
 ---
 
 ## 10) Operations runbook

@@ -258,8 +258,7 @@ Synapse (model) → Power BI (view: mdl.vw_fact_trip_bi)
 **Power BI freshness**
 ![PBI – Last Updated](docs/img/pbi_last_updated.png)
 
-**Purview lineage (optional)**
-![Purview lineage](docs/img/purview_streaming_lineage.png)
+
 
 
 ---
