@@ -18,8 +18,14 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobStorageLocation",
-				"fileName": "-1277435299_f5f3bba8954e442881824a2b1a78e38f_1.csv",
-				"folderPath": "date=2025/09/29/17",
+				"fileName": {
+					"value": "@dataset().fileName",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().folderPath",
+					"type": "Expression"
+				},
 				"container": "streaming-curated"
 			},
 			"columnDelimiter": ",",
