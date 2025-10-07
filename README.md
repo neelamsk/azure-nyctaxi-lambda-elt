@@ -187,9 +187,8 @@ trufflehog --regex --entropy=False https://github.com/neelamsk/azure-nyctaxi-lam
 
 ---
 
-### Add Learning Outcomes
-```markdown
-## 📚 What You'll Learn
+
+## What You'll Learn
 
 This project demonstrates enterprise patterns for:
 - Building resilient streaming pipelines with proper error handling
