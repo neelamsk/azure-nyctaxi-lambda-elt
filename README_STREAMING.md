@@ -7,6 +7,9 @@ Event Hubs → Stream Analytics (ASA) parses & applies DQ → ADLS Gen2 stores *
 
 ## Architecture (high-level)
 
+
+![Architecture (Dev)](docs/img/arch-streaming-elt-fixed.jpg)
+
 ```
 Producer (Python/app)
    └─> Azure Event Hubs (Hub: trips)

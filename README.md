@@ -16,6 +16,9 @@ Processing 1M+ daily NYC taxi trips in near real-time while maintaining a single
 
 ## Architecture (high level)
 
+
+![Architecture (Dev)](docs/img/arch-batch-streaming-combined.jpg)
+
 ```
                  ┌────────────────────────────── Streaming Lane ──────────────────────────────┐
 Producer(s) → Event Hubs → Stream Analytics (parse + DQ) → ADLS Gen2
